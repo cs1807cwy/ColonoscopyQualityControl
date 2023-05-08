@@ -4,7 +4,7 @@ import cv2
 import torch
 import torch.nn.functional as F
 import torchvision
-from pytorch_lightning import LightningModule
+from lightning.pytorch import LightningModule
 from .Net import InpaintContextualAttentionGenerator, SpectralNormMarkovianDiscriminator
 from .Util import mask_image
 import numpy as np

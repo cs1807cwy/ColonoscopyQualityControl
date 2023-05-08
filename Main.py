@@ -1,12 +1,12 @@
 # main.py
-from pytorch_lightning.cli import LightningCLI
+from lightning.pytorch.cli import LightningCLI
 
 # simple demo classes for your convenience
-from Inpaint import *
+from Classifier import *
 
 
 def cli_main():
-    cli = LightningCLI(save_config_overwrite=True)
+    cli = LightningCLI()
     # note: don't call fit!!
 
 

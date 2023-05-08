@@ -7,7 +7,7 @@ from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from pytorch_lightning import LightningDataModule
+from lightning.pytorch import LightningDataModule
 from torch.utils.data import Dataset, DataLoader, random_split
 
 
