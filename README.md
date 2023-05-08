@@ -1,4 +1,6 @@
-# Pytorch Reimplementation of DeepFillv2: Free-Form Image Inpainting with Gated Convolution
+# Colonoscope Quality Control
+
+**以下为占位符**
 
 Respectful and with much appreciation to ICCV 2019 Oral Paper [Free-Form Image Inpainting with Gated Convolution](https://openaccess.thecvf.com/content_ICCV_2019/html/Yu_Free-Form_Image_Inpainting_With_Gated_Convolution_ICCV_2019_paper.html).
 
