@@ -1,413 +1,225 @@
 import os
 import numpy as np
 import cv2
+import random
 from PIL import Image
-from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union, Tuple, Set
 
 import torch
 import torchvision
 import torchvision.transforms as transforms
 from lightning.pytorch import LightningDataModule
 from torch.utils.data import Dataset, DataLoader, random_split
+from Dataset import ColonoscopySiteQualityDataset
 
 
-class CelebAMaskHQ(LightningDataModule):
-    class _dataset(Dataset):
-        def __init__(self,
-                     image_paths: list[str],
-                     resize_shape: Optional[tuple[int, int]], ):
-            self.image_paths: list[str] = image_paths
-            self.resize_shape = resize_shape
-
-        def __getitem__(self, idx: int) -> (str, torch.Tensor):
-            item: Image.Image = Image.open(self.image_paths[idx]).convert('RGB')
-            if self.resize_shape is not None:
-                item = transforms.Resize(self.resize_shape)(item)
-            item: torch.Tensor = transforms.ToTensor()(item)
-            item.mul_(2.).add_(-1.)
-
-            basename = os.path.basename(self.image_paths[idx])
-            return basename, item
-
-        def __len__(self) -> int:
-            return len(self.image_paths)
-
+class ColonoscopySiteQualityDataModule(LightningDataModule):
     def __init__(
             self,
-            data_dir: str = 'Example/CelebAMask-HQ/CelebA-HQ-img',
-            out_shape: Optional[tuple[int, int]] = None,
+            # Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
+            image_index_dir: Dict[str, Dict[str, str]],  # inner keys: index, dir
+            # Dict[数据子集名, 标签]
+            image_label: Dict[str, str],
+            sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
+            resize_shape: Tuple[int, int] = (306, 306),
+            center_crop_shape: Tuple[int, int] = (256, 256),
+            brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
+            contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
+            saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
             batch_size: int = 16,
-            num_workers: int = 1,
-            validation_ratio: float = 0.1,
-            test_ratio: float = 0.1,
+            num_workers: int = 0,
+            dry_run: bool = False
     ):
+        """
+        Args:
+            image_index_dir: Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
+            image_label: Dict[数据子集名, 标签] 每个数据子集有且仅有一个标签
+            sample_weight: 数据子集采样率。
+                如果为None则不执行采样，简单合并所有数据子集；
+                如果为int型，则每个epoch对全部数据子集按固定数量采样；
+                如果为float型，则每个epoch对全部数据子集按固定比例采样；
+                如果为Dict型，可对每个数据子集的采样率进行规定，值类型可以是int, float，按前述规则处理，缺失键时按None规则处理
+            for_validation: false时作为训练集；true时作为验证集
+            resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
+            center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
+            brightness_jitter: 亮度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - brightness), 1 + brightness]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            contrast_jitter: 对比度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - contrast), 1 + contrast]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            saturation_jitter: 饱和度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - saturation), 1 + saturation]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            batch_size: 批大小
+            num_workers: 加载数据的子进程数
+            dry_run: 测试模式
+        """
+
         super().__init__()
-        self.data_dir = data_dir
-        self.resize_shape = out_shape
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.validation_ratio = validation_ratio
-        self.test_ratio = test_ratio
+        self.image_index_dir: Dict[str, Dict[str, str]] = image_index_dir
+        self.image_label: Dict[str, str] = image_label
+        self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
+        self.resize_shape: Tuple[int, int] = resize_shape
+        self.center_crop_shape: Tuple[int, int] = center_crop_shape
+        self.brightness_jitter: Union[float, Tuple[float, float]] = brightness_jitter
+        self.contrast_jitter: Union[float, Tuple[float, float]] = contrast_jitter
+        self.saturation_jitter: Union[float, Tuple[float, float]] = saturation_jitter
+        self.batch_size: int = batch_size
+        self.num_workers: int = num_workers
+        self.dry_run: bool = dry_run
+
+        self.train_dataset = None
+        self.validation_dataset = None
 
     def setup(self, stage=None):
-
-        def _get_filenames(data_dir: str) -> list[str]:
-            image_list: list[str] = os.listdir(data_dir)
-            image_paths: list[str] = [os.path.join(data_dir, _) for _ in image_list]
-            return image_paths
-
-        # list & collect all images
-        image_paths: list[str] = _get_filenames(self.data_dir)
-        image_paths.sort(key=lambda x: (int)(os.path.basename(x).split('.')[0]))
-
-        # print(f'CelebA-HQ total samples: {len(image_paths)}')
-
-        # split for training-validation & test
-        self.test_count: int = (int)(len(image_paths) * self.test_ratio)
-        self.val_count: int = (int)(len(image_paths) * self.validation_ratio)
-        self.train_count: int = len(image_paths) - self.test_count - self.val_count
-        train_val_count: int = self.train_count + self.val_count
-        self.train_val_image_paths: list[str] = image_paths[0:train_val_count]
-        self.test_image_paths: list[str] = image_paths[train_val_count:]
-
-        # print(f'CelebA-HQ train_val samples: {len(self.train_val_image_paths)}')
-        # print(f'CelebA-HQ test samples: {len(self.test_image_paths)}')
-
         # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
-            train_image_paths, val_image_paths = \
-                random_split(self.train_val_image_paths, [self.train_count, self.val_count])
-            self.celeba_hq_train: CelebAMaskHQ._dataset = CelebAMaskHQ._dataset(train_image_paths, self.resize_shape)
-            self.celeba_hq_val: CelebAMaskHQ._dataset = CelebAMaskHQ._dataset(val_image_paths, self.resize_shape)
-
-            # print(f'CelebA-HQ train dataset len: {len(self.celeba_hq_train)}')
-            # print(f'CelebA-HQ val dataset len: {len(self.celeba_hq_val)}')
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.celeba_hq_test: CelebAMaskHQ._dataset = CelebAMaskHQ._dataset(self.test_image_paths, self.resize_shape)
-
-            # print(f'CelebA-HQ test dataset len: {len(self.celeba_hq_test)}')
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.celeba_hq_train,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-        )
-
-    def val_dataloader(self):
-        return DataLoader(self.celeba_hq_val, batch_size=self.batch_size, num_workers=self.num_workers)
-
-    def test_dataloader(self):
-        return DataLoader(self.celeba_hq_test, batch_size=self.batch_size, num_workers=self.num_workers)
-
-
-class ILSVRC2012_Task1_2(LightningDataModule):
-    class _dataset(Dataset):
-        def __init__(self,
-                     image_paths: list[str],
-                     crop_shape: tuple[int, int], ):
-            self.image_paths: list[str] = image_paths
-            self.crop_shape: tuple[int, int] = crop_shape
-            self.transform = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.RandomCrop(self.crop_shape),
-                ]
-            )
-
-        def __getitem__(self, idx: int) -> (str, torch.Tensor):
-            item: Image.Image = Image.open(self.image_paths[idx]).convert('RGB')
-            if item.height < self.crop_shape[0] or item.width < self.crop_shape[1]:
-                item = transforms.Resize(min(self.crop_shape))(item)
-
-            item: torch.Tensor = self.transform(item)
-            item.mul_(2).add_(-1)
-
-            basename = os.path.basename(self.image_paths[idx])
-            return basename, item
-
-        def __len__(self) -> int:
-            return len(self.image_paths)
-
-    def __init__(
-            self,
-            train_data_dir: str = 'Example/ILSVRC2012/ILSVRC2012_img_train',
-            validation_data_dir: str = 'Example/ILSVRC2012/ILSVRC2012_img_val',
-            test_data_dir: str = 'Example/ILSVRC2012/ILSVRC2012_img_test_v10102019',
-            out_shape: Optional[tuple[int, int]] = None,
-            batch_size: int = 16,
-            num_workers: int = 1,
-    ):
-        super().__init__()
-        self.train_data_dir = train_data_dir
-        self.validation_data_dir = validation_data_dir
-        self.test_data_dir = test_data_dir
-        self.out_shape = out_shape
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-
-    def setup(self, stage=None):
-
-        def _get_filenames(data_dir: str) -> list[str]:
-            image_list: list[str] = os.listdir(data_dir)
-            image_paths: list[str] = [os.path.join(data_dir, _) for _ in image_list]
-            return image_paths
-
-        # list & collect all images
-        self.train_image_paths = _get_filenames(self.train_data_dir)
-        self.val_image_paths = _get_filenames(self.validation_data_dir)
-        self.test_image_paths = _get_filenames(self.test_data_dir)
-
-        # counting
-        # self.train_count: int = len(self.train_image_paths)
-        # self.val_count: int = len(self.val_image_paths)
-        # self.test_count: int = len(self.test_image_paths)
-        #
-        # print(f'ILSVRCt1_2 total samples: {self.train_count + self.val_count + self.test_count}')
-        # print(f'ILSVRCt1_2 train samples: {self.train_count}')
-        # print(f'ILSVRCt1_2 val samples: {self.val_count}')
-        # print(f'ILSVRCt1_2 test samples: {self.test_count}')
-
-        # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
-            self.ilsvrc_t1_2_train: ILSVRC2012_Task1_2._dataset = \
-                ILSVRC2012_Task1_2._dataset(self.train_image_paths, self.out_shape)
-            self.ilsvrc_val: ILSVRC2012_Task1_2._dataset = \
-                ILSVRC2012_Task1_2._dataset(self.val_image_paths, self.out_shape)
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.ilsvrc_test: ILSVRC2012_Task1_2._dataset = \
-                ILSVRC2012_Task1_2._dataset(self.test_image_paths, self.out_shape)
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.ilsvrc_t1_2_train,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-        )
-
-    def val_dataloader(self):
-        return DataLoader(self.ilsvrc_val, batch_size=self.batch_size, num_workers=self.num_workers)
-
-    def test_dataloader(self):
-        return DataLoader(self.ilsvrc_test, batch_size=self.batch_size, num_workers=self.num_workers)
-
-
-class ILSVRC2012_Task3(LightningDataModule):
-    class _dataset(Dataset):
-        def __init__(self,
-                     image_paths: list[str],
-                     crop_shape: tuple[int, int], ):
-            self.image_paths: list[str] = image_paths
-            self.crop_shape: tuple[int, int] = crop_shape
-            self.transform = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.RandomCrop(self.crop_shape),
-                ]
-            )
-
-        def __getitem__(self, idx: int) -> (str, torch.Tensor):
-            item: Image.Image = Image.open(self.image_paths[idx]).convert('RGB')
-            if item.height < self.crop_shape[0] or item.width < self.crop_shape[1]:
-                item = transforms.Resize(min(self.crop_shape))(item)
-
-            item: torch.Tensor = self.transform(item)
-            item.mul_(2).add_(-1)
-
-            basename = os.path.basename(self.image_paths[idx])
-            return basename, item
-
-        def __len__(self) -> int:
-            return len(self.image_paths)
-
-    def __init__(
-            self,
-            train_data_dir: str = 'Example/ILSVRC2012/ILSVRC2012_img_train_t3',
-            validation_data_dir: str = 'Example/ILSVRC2012/ILSVRC2012_img_val',
-            test_data_dir: str = 'Example/ILSVRC2012/ILSVRC2012_img_test_v10102019',
-            out_shape: Optional[tuple[int, int]] = None,
-            batch_size: int = 16,
-            num_workers: int = 1,
-    ):
-        super().__init__()
-        self.train_data_dir = train_data_dir
-        self.validation_data_dir = validation_data_dir
-        self.test_data_dir = test_data_dir
-        self.out_shape = out_shape
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-
-    def setup(self, stage=None):
-        def _get_filenames(data_dir: str) -> list[str]:
-            image_list: list[str] = os.listdir(data_dir)
-            image_paths: list[str] = [os.path.join(data_dir, _) for _ in image_list]
-            return image_paths
-
-        # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
+        if stage == 'fit' or stage is None:
             # list & collect all images
-            self.train_image_paths = _get_filenames(self.train_data_dir)
-            self.val_image_paths = _get_filenames(self.validation_data_dir)
-            self.ilsvrc_t3_train: ILSVRC2012_Task3._dataset = \
-                ILSVRC2012_Task3._dataset(self.train_image_paths, self.out_shape)
-            self.ilsvrc_val: ILSVRC2012_Task3._dataset = \
-                ILSVRC2012_Task3._dataset(self.val_image_paths, self.out_shape)
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.test_image_paths = _get_filenames(self.test_data_dir)
-            self.ilsvrc_test: ILSVRC2012_Task3._dataset = \
-                ILSVRC2012_Task3._dataset(self.test_image_paths, self.out_shape)
+            self.train_dataset = ColonoscopySiteQualityDataset(
+                self.image_index_dir,
+                self.image_label,
+                self.sample_weight,
+                False,
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+                self.dry_run
+            )
+            self.validation_dataset = ColonoscopySiteQualityDataset(
+                self.image_index_dir,
+                self.image_label,
+                self.sample_weight,
+                True,
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+                self.dry_run
+            )
 
     def train_dataloader(self):
         return DataLoader(
-            self.ilsvrc_t3_train,
+            self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
         )
 
     def val_dataloader(self):
-        return DataLoader(self.ilsvrc_val, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers)
 
-    def test_dataloader(self):
-        return DataLoader(self.ilsvrc_test, batch_size=self.batch_size, num_workers=self.num_workers)
-
-
-def Test_CelebAMaskHQ():
-    import matplotlib.pyplot as plt
-    print('[Test] DataModule: CelebAMask-HQ')
-    dataset = CelebAMaskHQ(data_dir='Example/CelebAMask-HQ/CelebA-HQ-img',
-                           batch_size=2,
-                           out_shape=(256, 256),
-                           validation_ratio=0.1,
-                           test_ratio=0.1)
-    dataset.prepare_data()
-    dataset.setup()
-    dataset_train = dataset.train_dataloader()
-    print('dataset_train:')
-    for idx, batch in enumerate(dataset_train):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'CelebAMaskHQ_dataset_train_{idx}')
-            plt.title(f'CelebAMaskHQ_dataset_train_{idx}')
-            plt.imshow(grid)
-            plt.show()
-    dataset_val = dataset.val_dataloader()
-    print('dataset_val:')
-    for idx, batch in enumerate(dataset_val):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'CelebAMaskHQ_dataset_val_{idx}')
-            plt.title(f'CelebAMaskHQ_dataset_val_{idx}')
-            plt.imshow(grid)
-            plt.show()
-    dataset_test = dataset.test_dataloader()
-    print('dataset_test:')
-    for idx, batch in enumerate(dataset_test):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'CelebAMaskHQ_dataset_test_{idx}')
-            plt.title(f'CelebAMaskHQ_dataset_test_{idx}')
-            plt.imshow(grid)
-            plt.show()
+    def size(self, part=None):
+        if part == 'train' or part is None:
+            return len(self.train_dataset)
+        elif part == 'validation':
+            return len(self.validation_dataset)
+        else:
+            return None
 
 
-def Test_ILSVRC2012t1_2():
-    import matplotlib.pyplot as plt
-    print('[Test] DataModule: ILSVRC2012 Task 1&2')
-    dataset = ILSVRC2012_Task1_2(batch_size=8,
-                                 out_shape=(256, 256), )
-    dataset.prepare_data()
-    dataset.setup()
-    dataset_train = dataset.train_dataloader()
-    print('dataset_train:')
-    for idx, batch in enumerate(dataset_train):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'ILSVRC2012t1_2_dataset_train_{idx}')
-            plt.title(f'ILSVRC2012t1_2_dataset_train_{idx}')
-            plt.imshow(grid)
-            plt.show()
-    dataset_val = dataset.val_dataloader()
-    print('dataset_val:')
-    for idx, batch in enumerate(dataset_val):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'ILSVRC2012t1_2_dataset_val_{idx}')
-            plt.title(f'ILSVRC2012t1_2_dataset_val_{idx}')
-            plt.imshow(grid)
-            plt.show()
-    dataset_test = dataset.test_dataloader()
-    print('dataset_test:')
-    for idx, batch in enumerate(dataset_test):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'ILSVRC2012t1_2_dataset_test_{idx}')
-            plt.title(f'ILSVRC2012t1_2_dataset_test_{idx}')
-            plt.imshow(grid)
-            plt.show()
+def TestColonoscopySiteQualityDataModule():
+    # Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
+    image_index_dir: Dict[str, Dict[str, str]] = {
+        'UIHIMG-ileocecal': {'index': '../Datasets/KIndex/UIHIMG/ileocecal/fold0.json',
+                             'dir': '../Datasets/UIHIMG/ileocecal'},
+        'UIHIMG-nofeature': {'index': '../Datasets/KIndex/UIHIMG/nofeature/fold0.json',
+                             'dir': '../Datasets/UIHIMG/nofeature'},
+        'UIHIMG-nonsense': {'index': '../Datasets/KIndex/UIHIMG/nonsense/fold0.json',
+                            'dir': '../Datasets/UIHIMG/nonsense'},
+        'UIHIMG-outside': {'index': '../Datasets/KIndex/UIHIMG/outside/fold0.json',
+                           'dir': '../Datasets/UIHIMG/outside'},
+        'Nerthus-0': {'index': '../Datasets/KIndex/Nerthus/0/fold0.json',
+                      'dir': '../Datasets/Nerthus/0'},
+        'Nerthus-1': {'index': '../Datasets/KIndex/Nerthus/1/fold0.json',
+                      'dir': '../Datasets/Nerthus/1'},
+        'Nerthus-2': {'index': '../Datasets/KIndex/Nerthus/2/fold0.json',
+                      'dir': '../Datasets/Nerthus/2'},
+        'Nerthus-3': {'index': '../Datasets/KIndex/Nerthus/3/fold0.json',
+                      'dir': '../Datasets/Nerthus/3'},
+    }
+    # Dict[数据子集名, 标签]
+    image_label: Dict[str, str] = {
+        'UIHIMG-ileocecal': 'fine',
+        'UIHIMG-nofeature': 'fine',
+        'UIHIMG-nonsense': 'nonsense',
+        'UIHIMG-outside': 'outside',
+        'Nerthus-0': 'fine',
+        'Nerthus-1': 'fine',
+        'Nerthus-2': 'fine',
+        'Nerthus-3': 'fine',
+    }
+    sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = {
+        'UIHIMG-ileocecal': 1666,
+        'UIHIMG-nofeature': 1666,
+        'UIHIMG-nonsense': 5000,
+        'UIHIMG-outside': 5000,
+        'Nerthus-0': 417,
+        'Nerthus-1': 417,
+        'Nerthus-2': 417,
+        'Nerthus-3': 417,
+    }
+    # sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = {
+    #     'UIHIMG-ileocecal': 16,
+    #     'UIHIMG-nofeature': 16,
+    #     'UIHIMG-nonsense': 50,
+    #     'UIHIMG-outside': 50,
+    #     'Nerthus-0': 4,
+    #     'Nerthus-1': 4,
+    #     'Nerthus-2': 4,
+    #     'Nerthus-3': 4,
+    # }
 
+    resize_shape: Tuple[int, int] = (306, 306)
+    center_crop_shape: Tuple[int, int] = (256, 256)
+    brightness_jitter: Union[float, Tuple[float, float]] = 0.8
+    contrast_jitter: Union[float, Tuple[float, float]] = 0.8
+    saturation_jitter: Union[float, Tuple[float, float]] = 0.8
+    batch_size: int = 16
+    num_workers: int = 0
 
-def Test_ILSVRC2012t3():
-    import matplotlib.pyplot as plt
-    print('[Test] DataModule: ILSVRC2012 Task 3')
-    dataset = ILSVRC2012_Task3(batch_size=16,
-                               out_shape=(256, 256))
-    dataset.setup()
-    dataset_train = dataset.train_dataloader()
-    print('dataset_train:')
-    for idx, batch in enumerate(dataset_train):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'ILSVRC2012t3_dataset_train_{idx}')
-            plt.title(f'ILSVRC2012t3_dataset_train_{idx}')
-            plt.imshow(grid)
-            plt.show()
-    dataset_val = dataset.val_dataloader()
-    print('dataset_val:')
-    for idx, batch in enumerate(dataset_val):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'ILSVRC2012t3_dataset_val_{idx}')
-            plt.title(f'ILSVRC2012t3_dataset_val_{idx}')
-            plt.imshow(grid)
-            plt.show()
-    dataset_test = dataset.test_dataloader()
-    print('dataset_test:')
-    for idx, batch in enumerate(dataset_test):
-        print(f'idx: {idx} name:{batch[0]} batch_size: {batch[1].shape}')
-        if idx < 2:
-            batch[1].add_(1.).mul_(0.5)
-            grid = torchvision.utils.make_grid(batch[1]).permute(1, 2, 0).numpy()
-            plt.figure(f'ILSVRC2012t3_dataset_test_{idx}')
-            plt.title(f'ILSVRC2012t3_dataset_test_{idx}')
-            plt.imshow(grid)
-            plt.show()
+    cqc_data_module: ColonoscopySiteQualityDataModule = ColonoscopySiteQualityDataModule(
+        image_index_dir,
+        image_label,
+        sample_weight,
+        resize_shape,
+        center_crop_shape,
+        brightness_jitter,
+        contrast_jitter,
+        saturation_jitter,
+        batch_size,
+        num_workers,
+        True
+    )
+    cqc_data_module.setup('fit')
+
+    import collections
+    item_counter: Dict[str, int] = collections.defaultdict(int)
+    item_record: Dict[str, List[int]] = collections.defaultdict(list)
+    label_counter: Dict[str, int] = collections.defaultdict(int)
+
+    train_dataloader = cqc_data_module.train_dataloader()
+
+    from tqdm import tqdm
+    epochs = 8
+    samples = epochs * cqc_data_module.size('train')
+    with tqdm(total=samples) as pbar:
+        pbar.set_description('Processing')
+        for epoch in range(epochs):
+            for batch_idx, batch in enumerate(train_dataloader):
+                item, label, basename = batch
+                # print(f'\tBatch {batch_idx}:' + str({'label': label, 'basename': basename}))
+                for n in basename:
+                    item_counter[n] += 1
+                    item_record[n].append(epoch)
+                for lb in label:
+                    label_counter[lb] += 1
+                pbar.update(len(label))
+
+    import json
+    with open('count_log.json', 'w') as count_file:
+        json.dump({'item': item_counter, 'record': item_record, 'label': label_counter}, count_file, indent=2)
 
 
 if __name__ == '__main__':
-    Test_CelebAMaskHQ()
-    Test_ILSVRC2012t1_2()
-    Test_ILSVRC2012t3()
+    TestColonoscopySiteQualityDataModule()
