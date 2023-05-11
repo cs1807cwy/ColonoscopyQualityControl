@@ -151,8 +151,8 @@ class ColonoscopySiteQualityDataset(Dataset):
                 tmp_offset += self.sample_num[k]
             self._train_generate_index_map()
 
-        for k in self.subset_keys:
-            print(f'{k}: {len(self.index_content[k])}')
+        # for k in self.subset_keys:
+        #     print(f'{k}: {len(self.index_content[k])}')
 
     def __getitem__(self, idx: int) -> (torch.Tensor, str):
         if not self.for_validation:
