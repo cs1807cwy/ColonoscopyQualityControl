@@ -172,7 +172,9 @@ class ColonoscopySiteQualityDataset(Dataset):
             item: torch.Tensor = self.transform(item)
         label: str = self.image_label[subset_key]
         basename: str = osp.basename(image_path)
-        return item, label, basename
+
+        # 图像Tensor，标签，原始标签，图像文件名
+        return item, label, subset_key, basename
 
     def __len__(self) -> int:
         return self.sample_per_epoch

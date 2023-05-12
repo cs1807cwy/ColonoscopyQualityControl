@@ -193,32 +193,69 @@ def TestColonoscopySiteQualityDataModule():
     )
     cqc_data_module.setup('fit')
 
-    import collections
-    item_counter: Dict[str, int] = collections.defaultdict(int)
-    item_record: Dict[str, List[int]] = collections.defaultdict(list)
-    label_counter: Dict[str, int] = collections.defaultdict(int)
+    # 统计表
+    # Dict[
+    #   标签,
+    #   Dict{
+    #       sample_count: 采样标签计数,
+    #       item_count: 不重复的项目计数,
+    #       content: Dict[
+    #           原始标签,
+    #           Dict{
+    #               sample_count: 采样原始标签计数,
+    #               item_count: 不重复的项目计数,
+    #               content: Dict[图像文件名, 计数]
+    #           }
+    #       ]
+    #   }
+    # ]
+    item_counter: Dict[str, Dict[str, Optional[int, Dict[str, Dict[str, Optional[int, Dict[str, int]]]]]]] = {}
 
     train_dataloader = cqc_data_module.train_dataloader()
 
     from tqdm import tqdm
-    epochs = 8
+    epochs = 21
     samples = epochs * cqc_data_module.size('train')
     with tqdm(total=samples) as pbar:
         pbar.set_description('Processing')
         for epoch in range(epochs):
             for batch_idx, batch in enumerate(train_dataloader):
-                item, label, basename = batch
+                # 依次为
+                # item: 图像Tensor
+                # label: 包装后的3类标签{outside|nonsense|fine}
+                # origin_label: 原始标签{UIHIMG-ileocecal|Nerthus-0|...}
+                # basename: 图像文件名
+                item, label, origin_label, basename = batch
                 # print(f'\tBatch {batch_idx}:' + str({'label': label, 'basename': basename}))
-                for n in basename:
-                    item_counter[n] += 1
-                    item_record[n].append(epoch)
-                for lb in label:
-                    label_counter[lb] += 1
+                for lb, olb, bn in zip(label, origin_label, basename):
+                    if item_counter.get(lb) is None:
+                        item_counter[lb] = {
+                            'sample_count': 1, 'item_count': 0,
+                            'content': {olb: {'sample_count': 1, 'item_count': 0, 'content': {bn: 1}}}
+                        }
+                    elif item_counter[lb]['content'].get(olb) is None:
+                        item_counter[lb]['sample_count'] += 1
+                        item_counter[lb]['content'][olb] = {'sample_count': 1, 'item_count': 0, 'content': {bn: 1}}
+                    elif item_counter[lb]['content'][olb]['content'].get(bn) is None:
+                        item_counter[lb]['sample_count'] += 1
+                        item_counter[lb]['content'][olb]['sample_count'] += 1
+                        item_counter[lb]['content'][olb]['content'][bn] = 1
+                    else:
+                        item_counter[lb]['sample_count'] += 1
+                        item_counter[lb]['content'][olb]['sample_count'] += 1
+                        item_counter[lb]['content'][olb]['content'][bn] += 1
                 pbar.update(len(label))
+
+    # 计算不重复项数
+    for lb in item_counter:
+        for olb in item_counter[lb]['content']:
+            itc = len(item_counter[lb]['content'][olb]['content'])
+            item_counter[lb]['content'][olb]['item_count'] = itc
+            item_counter[lb]['item_count'] += itc
 
     import json
     with open('count_log.json', 'w') as count_file:
-        json.dump({'item': item_counter, 'record': item_record, 'label': label_counter}, count_file, indent=2)
+        json.dump(item_counter, count_file, indent=2)
 
 
 if __name__ == '__main__':
