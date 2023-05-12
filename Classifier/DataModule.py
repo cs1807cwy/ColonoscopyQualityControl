@@ -14,6 +14,17 @@ from Dataset import ColonoscopySiteQualityDataset
 
 
 class ColonoscopySiteQualityDataModule(LightningDataModule):
+    """
+    # 获取类别编码的方法调用\n
+    [One-Hot Label Code for Reference]\n
+    cqc_data_module = ColonoscopySiteQualityDataModule(...)\n
+    # 调用此数据模型的如下方法来获取标签和编码的对应关系，标签按字典顺序依次编码\n
+    cqc_data_module.get_label_code_dict()  # 获取label到code的映射\n
+    label to code {'fine': tensor([1., 0., 0.]), 'nonsense': tensor([0., 1., 0.]), 'outside': tensor([0., 0., 1.])}\n
+    cqc_data_module.get_code_label_dict()  # 获取code到label的映射\n
+    [code to label] {tensor([1., 0., 0.]): 'fine', tensor([0., 1., 0.]): 'nonsense', tensor([0., 0., 1.]): 'outside'}
+    """
+
     def __init__(
             self,
             # Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
@@ -39,7 +50,6 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 如果为int型，则每个epoch对全部数据子集按固定数量采样；
                 如果为float型，则每个epoch对全部数据子集按固定比例采样；
                 如果为Dict型，可对每个数据子集的采样率进行规定，值类型可以是int, float，按前述规则处理，缺失键时按None规则处理
-            for_validation: false时作为训练集；true时作为验证集
             resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
             center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
             brightness_jitter: 亮度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - brightness), 1 + brightness]
@@ -66,8 +76,8 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         self.num_workers: int = num_workers
         self.dry_run: bool = dry_run
 
-        self.train_dataset = None
-        self.validation_dataset = None
+        self.train_dataset: ColonoscopySiteQualityDataset = None
+        self.validation_dataset: ColonoscopySiteQualityDataset = None
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
@@ -109,13 +119,29 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
     def val_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers)
 
-    def size(self, part=None):
+    def size(self, part=None) -> Optional[int]:
         if part == 'train' or part is None:
             return len(self.train_dataset)
         elif part == 'validation':
             return len(self.validation_dataset)
         else:
             return None
+
+    def get_label_code_dict(self, part=None) -> Dict[str, torch.Tensor]:
+        if part == 'train' or part is None:
+            return self.train_dataset.label_code
+        elif part == 'validation':
+            return self.validation_dataset.label_code
+        else:
+            return {}
+
+    def get_code_label_dict(self, part=None) -> Dict[torch.Tensor, str]:
+        if part == 'train' or part is None:
+            return {v: k for k, v in self.train_dataset.label_code.items()}
+        elif part == 'validation':
+            return {v: k for k, v in self.validation_dataset.label_code.items()}
+        else:
+            return {}
 
 
 def TestColonoscopySiteQualityDataModule():
@@ -214,8 +240,8 @@ def TestColonoscopySiteQualityDataModule():
     train_dataloader = cqc_data_module.train_dataloader()
 
     from tqdm import tqdm
-    epochs = 21
-    samples = epochs * cqc_data_module.size('train')
+    epochs: int = 21
+    samples: int = epochs * cqc_data_module.size('train')
     with tqdm(total=samples) as pbar:
         pbar.set_description('Processing')
         for epoch in range(epochs):
@@ -225,12 +251,13 @@ def TestColonoscopySiteQualityDataModule():
                 # label: 包装后的3类标签{outside|nonsense|fine}
                 # origin_label: 原始标签{UIHIMG-ileocecal|Nerthus-0|...}
                 # basename: 图像文件名
-                item, label, origin_label, basename = batch
+                item, label_code, label, origin_label, basename = batch
                 # print(f'\tBatch {batch_idx}:' + str({'label': label, 'basename': basename}))
-                for lb, olb, bn in zip(label, origin_label, basename):
+                for lc, lb, olb, bn in zip(label_code, label, origin_label, basename):
                     if item_counter.get(lb) is None:
                         item_counter[lb] = {
                             'sample_count': 1, 'item_count': 0,
+                            'code': lc.tolist(),
                             'content': {olb: {'sample_count': 1, 'item_count': 0, 'content': {bn: 1}}}
                         }
                     elif item_counter[lb]['content'].get(olb) is None:
@@ -244,7 +271,7 @@ def TestColonoscopySiteQualityDataModule():
                         item_counter[lb]['sample_count'] += 1
                         item_counter[lb]['content'][olb]['sample_count'] += 1
                         item_counter[lb]['content'][olb]['content'][bn] += 1
-                pbar.update(len(label))
+                pbar.update(len(item))
 
     # 计算不重复项数
     for lb in item_counter:
@@ -252,6 +279,11 @@ def TestColonoscopySiteQualityDataModule():
             itc = len(item_counter[lb]['content'][olb]['content'])
             item_counter[lb]['content'][olb]['item_count'] = itc
             item_counter[lb]['item_count'] += itc
+
+    # 获取类别编码的方法调用
+    print('[One-Hot Label Code for Reference]')
+    print('[label to code]', cqc_data_module.get_label_code_dict('train'))
+    print('[code to label]', cqc_data_module.get_code_label_dict('train'))
 
     import json
     with open('count_log.json', 'w') as count_file:

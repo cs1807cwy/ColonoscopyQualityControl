@@ -54,6 +54,16 @@ class ColonoscopySiteQualityDataset(Dataset):
 
         self.image_index_dir: Dict[str, Dict[str, str]] = image_index_dir
         self.image_label: Dict[str, str] = image_label
+        self.label_code: Dict[str, torch.Tensor] = {}
+        label_value_list: List[str] = list(set(self.image_label.values()))
+        label_value_list = sorted(label_value_list)
+        for idx, val in enumerate(label_value_list):
+            onehot_code: torch.Tensor = torch.zeros(len(label_value_list))
+            onehot_code[idx] = 1.
+            self.label_code[val] = onehot_code
+        if dry_run:
+            print(f'label_code: {self.label_code}')
+
         self.for_validation: bool = for_validation
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -88,6 +98,14 @@ class ColonoscopySiteQualityDataset(Dataset):
                     self.index_content[k] = [osp.join(dir_path, name) for name in index_file_content['train']]
                 self.index_length[k] = len(self.index_content[k])
                 random.shuffle(self.index_content[k])  # 混洗每一个用于训练的数据子集
+
+        if dry_run:
+            if for_validation:
+                print('[Validation]')
+            else:
+                print('[Train]')
+            for k in self.subset_keys:
+                print(f'{k}: {len(self.index_content[k])}')
 
         # 映射锚点
         # Dict[数据子集的键, Tuple[数据子集内部索引, 对外索引]]
@@ -151,9 +169,6 @@ class ColonoscopySiteQualityDataset(Dataset):
                 tmp_offset += self.sample_num[k]
             self._train_generate_index_map()
 
-        # for k in self.subset_keys:
-        #     print(f'{k}: {len(self.index_content[k])}')
-
     def __getitem__(self, idx: int) -> (torch.Tensor, str):
         if not self.for_validation:
             # 计数达到epoch数据总量后重新采样
@@ -171,10 +186,11 @@ class ColonoscopySiteQualityDataset(Dataset):
             item: Image.Image = Image.open(image_path).convert('RGB')
             item: torch.Tensor = self.transform(item)
         label: str = self.image_label[subset_key]
+        label_code: torch.Tensor = self.label_code[label]
         basename: str = osp.basename(image_path)
 
-        # 图像Tensor，标签，原始标签，图像文件名
-        return item, label, subset_key, basename
+        # 图像Tensor，标签编码，标签，原始标签，图像文件名
+        return item, label_code, label, subset_key, basename
 
     def __len__(self) -> int:
         return self.sample_per_epoch
