@@ -190,7 +190,10 @@ class ColonoscopySiteQualityDataset(Dataset):
         basename: str = osp.basename(image_path)
 
         # 图像Tensor，标签编码，标签，原始标签，图像文件名
-        return item, label_code, label, subset_key, basename
+        if self.dry_run:
+            return item, label_code, label, subset_key, basename
+        else:
+            return item, label_code
 
     def __len__(self) -> int:
         return self.sample_per_epoch

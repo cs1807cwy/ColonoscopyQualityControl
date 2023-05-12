@@ -117,7 +117,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         )
 
     def val_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.validation_dataset, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def size(self, part=None) -> Optional[int]:
         if part == 'train' or part is None:
@@ -286,8 +286,41 @@ def TestColonoscopySiteQualityDataModule():
     print('[code to label]', cqc_data_module.get_code_label_dict('train'))
 
     import json
-    with open('count_log.json', 'w') as count_file:
+    os.makedirs('test_output', exist_ok=True)
+    with open('test_output/count_log.json', 'w') as count_file:
         json.dump(item_counter, count_file, indent=2)
+
+    import matplotlib.pyplot as plt
+    # 采样总数
+    x_label: List[str] = []
+    y_count: List[int] = []
+    for lb, ct in item_counter.items():
+        x_label.append(lb)
+        y_count.append(item_counter[lb]['sample_count'])
+        for olb, ct2 in item_counter[lb]['content'].items():
+            x_label.append(olb)
+            y_count.append(item_counter[lb]['sample_count'])
+    plt.figure()
+    plt.bar()
+
+
+    # 覆盖总数
+    x_label: List[str] = []
+    y_count: List[int] = []
+    for lb, ct in item_counter.items():
+        x_label.append(lb)
+        y_count.append(item_counter[lb]['item_count'])
+        for olb, ct2 in item_counter[lb]['content'].items():
+            x_label.append(olb)
+            y_count.append(item_counter[lb]['item_count'])
+
+    # 采样频数分布直方图
+    for lb, ct in item_counter.items():
+        x_label.append(lb)
+        y_count.append(item_counter[lb]['item_count'])
+        for olb, ct2 in item_counter[lb]['content'].items():
+            x_label.append(olb)
+            y_count.append(item_counter[lb]['item_count'])
 
 
 if __name__ == '__main__':
