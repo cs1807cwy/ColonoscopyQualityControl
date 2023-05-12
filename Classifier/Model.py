@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 from lightning.pytorch import LightningModule
-from .Net import ResNet50
+from Net import ResNet50
 from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union, Tuple
 
 
@@ -30,35 +30,32 @@ class CQCClassifier(LightningModule):
         return self.classifier(x)
 
     def training_step(self, batch, batch_idx: int):
-        x, y, _, _, _ = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
         y_hat = self(x)
         loss = F.cross_entropy(y_hat, y)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         # 计算train_acc
-        y_hat = torch.argmax(y_hat, dim=1)
-        acc = torch.sum(y_hat == y).item() / len(y)
-        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
+        self.log("train_acc", acc, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx: int):
-        x, y, _, _, _ = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
         y_hat = self(x)
         loss = F.cross_entropy(y_hat, y)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         # 计算val_acc
-        y_hat = torch.argmax(y_hat, dim=1)
-        acc = torch.sum(y_hat == y).item() / len(y)
-        self.log('val_acc', acc, prog_bar=True, logger=True)
+        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
+        self.log('val_acc', acc, prog_bar=True, logger=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx: int):
-        x, y, _, _, _ = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
         y_hat = self(x)
         loss = F.cross_entropy(y_hat, y)
-        self.log('test_loss', loss)
+        self.log('test_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         # 计算test_acc
-        y_hat = torch.argmax(y_hat, dim=1)
-        acc = torch.sum(y_hat == y).item() / len(y)
-        self.log('test_acc', acc, prog_bar=True, logger=True)
+        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
+        self.log('test_acc', acc, prog_bar=True, logger=True, sync_dist=True)
 
     def configure_optimizers(self):
         lr = self.hparams.lr

@@ -43,9 +43,9 @@ class ResNet(nn.Module):
     def __init__(self, block_type, block_num, num_classes):
         super(ResNet, self).__init__()
         self.in_channels = 64
+        # pytorch 2.0 之后的写法，使用same_padding实现padding='same'
 
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.in_channels, kernel_size=7, stride=2, padding=3,
-                               bias=False)  # H/2 W/2 C:3->64
+        self.conv1 = nn.Conv2d(3, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False)  # H/2 W/2 C:64
         self.bn1 = nn.BatchNorm2d(self.in_channels)
         self.relu = nn.ReLU(inplace=True)
         self.max_pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)  # H/2 W/2 C:64
@@ -60,7 +60,10 @@ class ResNet(nn.Module):
         # 初始化权重
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def _make_layer(self, block_type, out_channels, block_num, stride=1):
         down_sample = None

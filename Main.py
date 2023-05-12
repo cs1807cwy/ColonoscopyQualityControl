@@ -1,12 +1,15 @@
 # main.py
 from lightning.pytorch.cli import LightningCLI
+from Classifier.DataModule import ColonoscopySiteQualityDataModule
+from Classifier.Model import CQCClassifier
+from Classifier.Train import CQCTrainer
 
 # simple demo classes for your convenience
 from Classifier import *
 
 
 def cli_main():
-    cli = LightningCLI()
+    cli = LightningCLI(model_class=CQCClassifier, datamodule_class=ColonoscopySiteQualityDataModule, trainer_class=CQCTrainer)
     # note: don't call fit!!
 
 
