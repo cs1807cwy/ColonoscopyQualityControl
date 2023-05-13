@@ -1,6 +1,5 @@
 # main.py
 from lightning.pytorch.cli import LightningCLI
-from Classifier.Train import CQCTrainer
 
 # simple demo classes for your convenience
 from Classifier import *
