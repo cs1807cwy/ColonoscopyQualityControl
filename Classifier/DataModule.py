@@ -10,7 +10,7 @@ import torchvision
 import torchvision.transforms as transforms
 from lightning.pytorch import LightningDataModule
 from torch.utils.data import Dataset, DataLoader, random_split
-from Dataset import ColonoscopySiteQualityDataset
+from .Dataset import ColonoscopySiteQualityDataset
 
 
 class ColonoscopySiteQualityDataModule(LightningDataModule):

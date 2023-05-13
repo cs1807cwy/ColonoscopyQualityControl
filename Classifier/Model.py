@@ -4,11 +4,11 @@ import torch
 import torch.nn.functional as F
 import torchvision
 from lightning.pytorch import LightningModule
-from Net import ResNet50
+from .Net import ResNet50
 from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union, Tuple
 
 
-class CQCClassifier(LightningModule):
+class SiteQualityClassifier(LightningModule):
     def __init__(
             self,
             input_shape: Tuple[int, int] = (256, 256),
@@ -35,8 +35,12 @@ class CQCClassifier(LightningModule):
         loss = F.cross_entropy(y_hat, y)
         self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         # 计算train_acc
+        # fine nonsense outside，合并前两类为一类进行统计
+        in_out_acc = (y_hat.argmax(dim=-1) != 2 & y.argmax(dim=-1) != 2).float().mean()
+        self.log('train_in_out_acc', in_out_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True,
+                 sync_dist=True)
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
-        self.log("train_acc", acc, prog_bar=True, logger=True, sync_dist=True)
+        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx: int):
@@ -45,6 +49,9 @@ class CQCClassifier(LightningModule):
         loss = F.cross_entropy(y_hat, y)
         self.log('val_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         # 计算val_acc
+        # fine nonsense outside，合并前两类为一类进行统计
+        in_out_acc = (y_hat.argmax(dim=-1) != 2 & y.argmax(dim=-1) != 2).float().mean()
+        self.log('val_in_out_acc', in_out_acc, prog_bar=True, logger=True, sync_dist=True)
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
         self.log('val_acc', acc, prog_bar=True, logger=True, sync_dist=True)
 

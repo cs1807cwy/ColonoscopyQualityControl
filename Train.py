@@ -3,10 +3,10 @@ from typing import Tuple, Dict, Union
 import torch
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks.progress import TQDMProgressBar
-from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
-from DataModule import ColonoscopySiteQualityDataModule as CQCDataModule
-from Model import CQCClassifier
+from Classifier.DataModule import ColonoscopySiteQualityDataModule as CQCDataModule
+from Classifier.Model import SiteQualityClassifier
 
 # hparams for Model
 input_shape: Tuple[int, int] = (256, 256)
@@ -123,7 +123,7 @@ class CQCTrainer(Trainer):
 
 def train():
     data_module = init_data_module()
-    model = CQCClassifier(input_shape, num_classes, batch_size, lr, b1, b2)
+    model = SiteQualityClassifier(input_shape, num_classes, batch_size, lr, b1, b2)
     trainer = init_trainer()
     trainer.fit(model, data_module)
 
