@@ -65,7 +65,7 @@ class ColonoscopySiteQualityDataset(Dataset):
             print(f'label_code: {self.label_code}')
 
         self.for_validation: bool = for_validation
-        self.transform = transforms.Compose([
+        self.transform_train = transforms.Compose([
             transforms.ToTensor(),
             # 缩放和截去黑边
             transforms.Resize(resize_shape, antialias=True),
@@ -76,6 +76,12 @@ class ColonoscopySiteQualityDataset(Dataset):
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomApply([transforms.RandomRotation([90, 90])])
+        ])
+        self.transform_validation = transforms.Compose([
+            transforms.ToTensor(),
+            # 缩放和截去黑边
+            transforms.Resize(resize_shape, antialias=True),
+            transforms.CenterCrop(center_crop_shape)
         ])
 
         # 测试模式
@@ -184,7 +190,7 @@ class ColonoscopySiteQualityDataset(Dataset):
             item = 0
         else:
             item: Image.Image = Image.open(image_path).convert('RGB')
-            item: torch.Tensor = self.transform(item)
+            item: torch.Tensor = self.transform_validation(item) if self.for_validation else self.transform_train(item)
         label: str = self.image_label[subset_key]
         label_code: torch.Tensor = self.label_code[label]
         basename: str = osp.basename(image_path)

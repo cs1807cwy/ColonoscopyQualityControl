@@ -291,6 +291,10 @@ def TestColonoscopySiteQualityDataModule():
         json.dump(item_counter, count_file, indent=2)
 
     import matplotlib.pyplot as plt
+    plt.rc('font', family='SimHei')  # 设置字体为黑体
+    plt.rc('axes', unicode_minus=False)  # 解决坐标轴负号显示问题
+    colors = ['#00429d'] * 2 + ['#c76a9f'] * 7 + ['#d0e848'] * 2
+
     # 采样总数
     x_label: List[str] = []
     y_count: List[int] = []
@@ -299,10 +303,14 @@ def TestColonoscopySiteQualityDataModule():
         y_count.append(item_counter[lb]['sample_count'])
         for olb, ct2 in item_counter[lb]['content'].items():
             x_label.append(olb)
-            y_count.append(item_counter[lb]['sample_count'])
-    plt.figure()
-    plt.bar()
-
+            y_count.append(item_counter[lb]['content'][olb]['sample_count'])
+    plt.figure(figsize=(12, 8))
+    plt.title("采样总数")
+    bar_graph = plt.barh(x_label, y_count, height=0.5, color=colors)
+    for rect in bar_graph:
+        w = rect.get_width()
+        plt.text(w + 1, rect.get_y() + rect.get_height() / 2, '%d' % int(w), ha='left', va='center')
+    plt.show()
 
     # 覆盖总数
     x_label: List[str] = []
@@ -312,15 +320,26 @@ def TestColonoscopySiteQualityDataModule():
         y_count.append(item_counter[lb]['item_count'])
         for olb, ct2 in item_counter[lb]['content'].items():
             x_label.append(olb)
-            y_count.append(item_counter[lb]['item_count'])
+            y_count.append(item_counter[lb]['content'][olb]['item_count'])
+    plt.figure(figsize=(12, 8))
+    plt.title("覆盖总数")
+    bar_graph = plt.barh(x_label, y_count, height=0.5, color=colors)
+    for rect in bar_graph:
+        w = rect.get_width()
+        plt.text(w + 1, rect.get_y() + rect.get_height() / 2, '%d' % int(w), ha='left', va='center')
+    plt.show()
 
     # 采样频数分布直方图
-    for lb, ct in item_counter.items():
-        x_label.append(lb)
-        y_count.append(item_counter[lb]['item_count'])
-        for olb, ct2 in item_counter[lb]['content'].items():
-            x_label.append(olb)
-            y_count.append(item_counter[lb]['item_count'])
+    # for lb, ct in item_counter.items():
+    #     x_label.append(lb)
+    #     y_count.append(item_counter[lb]['item_count'])
+    #     for olb, ct2 in item_counter[lb]['content'].items():
+    #         x_label.append(olb)
+    #         y_count.append(item_counter[lb]['item_count'])
+    # plt.figure(figsize=(15, 10))
+    # plt.title("采样频数分布直方图")
+    # plt.barh(x_label, y_count, label='value')
+    # plt.show()
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ from Classifier import *
 
 
 def cli_main():
-    cli = LightningCLI()
+    cli = LightningCLI(save_config_kwargs={"overwrite": True})
     # note: don't call fit!!
 
 

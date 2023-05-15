@@ -123,7 +123,7 @@ class CQCTrainer(Trainer):
 
 def train():
     data_module = init_data_module()
-    model = SiteQualityClassifier(input_shape, num_classes, batch_size, lr, b1, b2)
+    model = SiteQualityClassifier(input_shape, num_classes, batch_size, lr, b1, b2, max_epochs)
     trainer = init_trainer()
     trainer.fit(model, data_module)
 
