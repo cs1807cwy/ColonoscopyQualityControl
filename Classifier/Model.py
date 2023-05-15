@@ -64,7 +64,7 @@ class SiteQualityClassifier(ResNet50Classifier):
 
 
 
-class SiteQualityClassifier(ResNet50Classifier):
+class CleansingClassifier(ResNet50Classifier):
     def training_step(self, batch, batch_idx: int):
         x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
         y_hat = self(x)
@@ -83,10 +83,25 @@ class SiteQualityClassifier(ResNet50Classifier):
         self.log('val_acc', acc, prog_bar=True, logger=True, sync_dist=True)
 
         confuse_matrix: Dict[str, int] = {
-            'bbps_0': torch.eq(y_hat.argmax(dim=-1), 0).float().sum(),
-            'bbps_1': torch.eq(y_hat.argmax(dim=-1), 1).float().sum(),
-            'bbps_2': torch.eq(y_hat.argmax(dim=-1), 2).float().sum(),
-            'bbps_3': torch.eq(y_hat.argmax(dim=-1), 3).float().sum()
+            'pred_bbps0_gt_bbps0': (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+            'pred_bbps0_gt_bbps1': (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+            'pred_bbps0_gt_bbps2': (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 2)).float().sum(),
+            'pred_bbps0_gt_bbps3': (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 3)).float().sum(),
+            'pred_bbps1_gt_bbps0': (torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+            'pred_bbps1_gt_bbps1': (torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+            'pred_bbps1_gt_bbps2': (torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 2)).float().sum(),
+            'pred_bbps1_gt_bbps3': (torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 3)).float().sum(),
+            'pred_bbps2_gt_bbps0': (torch.eq(y_hat.argmax(dim=-1), 2) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+            'pred_bbps2_gt_bbps1': (torch.eq(y_hat.argmax(dim=-1), 2) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+            'pred_bbps2_gt_bbps2': (torch.eq(y_hat.argmax(dim=-1), 2) & torch.eq(y.argmax(dim=-1), 2)).float().sum(),
+            'pred_bbps2_gt_bbps3': (torch.eq(y_hat.argmax(dim=-1), 2) & torch.eq(y.argmax(dim=-1), 3)).float().sum(),
+            'pred_bbps3_gt_bbps0': (torch.eq(y_hat.argmax(dim=-1), 3) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+            'pred_bbps3_gt_bbps1': (torch.eq(y_hat.argmax(dim=-1), 3) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+            'pred_bbps3_gt_bbps2': (torch.eq(y_hat.argmax(dim=-1), 3) & torch.eq(y.argmax(dim=-1), 2)).float().sum(),
+            'pred_bbps3_gt_bbps3': (torch.eq(y_hat.argmax(dim=-1), 3) & torch.eq(y.argmax(dim=-1), 3)).float().sum()
+
+
+
         }
 
         self.log_dict(confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
