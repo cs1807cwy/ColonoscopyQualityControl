@@ -60,3 +60,44 @@ class SiteQualityClassifier(ResNet50Classifier):
     def on_test_epoch_start(self):
         os.makedirs('./ModelScript', exist_ok=True)
         self.to_torchscript(f'./ModelScript/model_{type(self)}.pt', method='trace')
+
+
+
+
+class SiteQualityClassifier(ResNet50Classifier):
+    def training_step(self, batch, batch_idx: int):
+        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
+        # 计算train_acc
+        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
+        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx: int):
+        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        y_hat = self(x)
+        # 计算val_acc
+        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
+        self.log('val_acc', acc, prog_bar=True, logger=True, sync_dist=True)
+
+        confuse_matrix: Dict[str, int] = {
+            'bbps_0': torch.eq(y_hat.argmax(dim=-1), 0).float().sum(),
+            'bbps_1': torch.eq(y_hat.argmax(dim=-1), 1).float().sum(),
+            'bbps_2': torch.eq(y_hat.argmax(dim=-1), 2).float().sum(),
+            'bbps_3': torch.eq(y_hat.argmax(dim=-1), 3).float().sum()
+        }
+
+        self.log_dict(confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+
+    def test_step(self, batch, batch_idx: int):
+        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        y_hat = self(x)
+        # 计算test_acc
+        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
+        self.log('test_acc', acc, prog_bar=True, logger=True, sync_dist=True)
+
+    def on_test_epoch_start(self):
+        os.makedirs('./ModelScript', exist_ok=True)
+        self.to_torchscript(f'./ModelScript/model_{type(self)}.pt', method='trace')
