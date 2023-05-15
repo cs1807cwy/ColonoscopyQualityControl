@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 
 __all__ = ['ResNet50', 'ResNet101', 'ResNet152']
@@ -43,7 +42,6 @@ class ResNet(nn.Module):
     def __init__(self, block_type, block_num, num_classes):
         super(ResNet, self).__init__()
         self.in_channels = 64
-        # pytorch 2.0 之后的写法，使用same_padding实现padding='same'
 
         self.conv1 = nn.Conv2d(3, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False)  # H/2 W/2 C:64
         self.bn1 = nn.BatchNorm2d(self.in_channels)

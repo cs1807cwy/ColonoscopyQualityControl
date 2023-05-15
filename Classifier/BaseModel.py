@@ -1,5 +1,3 @@
-import os
-
 import torch
 from lightning.pytorch import LightningModule
 from .Net import *
@@ -44,6 +42,7 @@ class ResNet50Classifier(LightningModule):
         opt = torch.optim.Adam(self.classifier.parameters(), lr=lr, betas=(b1, b2))
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
+
 
 class ResNet101Classifier(LightningModule):
     def __init__(
