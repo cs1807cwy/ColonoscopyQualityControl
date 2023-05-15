@@ -63,6 +63,22 @@ class SiteQualityClassifier(ResNet50Classifier):
 
 
 class IleocecalClassifier(ResNet50Classifier):
+
+    def __init__(
+            self,
+            input_shape: Tuple[int, int] = (256, 256),
+            num_classes: int = 3,
+            batch_size: int = 16,
+            lr: float = 1e-4,
+            b1: float = 0.5,
+            b2: float = 0.999,
+            epochs: int = 50,
+            **kwargs,
+    ):
+        super().__init__(input_shape, num_classes, batch_size, lr, b1, b2, epochs, kwargs)
+        self.val_confuse_matrix = None
+        self.test_confuse_matrix = None
+
     def training_step(self, batch, batch_idx: int):
         x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
         y_hat = self(x)
@@ -71,11 +87,6 @@ class IleocecalClassifier(ResNet50Classifier):
         # 计算train_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
         self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        # y_hat.argmax 之后 ileocecal是0，nofeature是1
-        # 计算ileocecal的precision
-        precision = (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum() / \
-                    (torch.eq(y_hat.argmax(dim=-1), 0).float().sum())
-        self.log('train_precision', precision, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx: int):
@@ -84,21 +95,17 @@ class IleocecalClassifier(ResNet50Classifier):
         # 计算val_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
         self.log('val_acc', acc, prog_bar=True, logger=True, sync_dist=True)
-        precision = (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum() / \
-                    (torch.eq(y_hat.argmax(dim=-1), 0).float().sum())
-        self.log('val_precision', precision, prog_bar=True, logger=True, sync_dist=True)
-
-        confuse_matrix: Dict[str, int] = {
+        self.val_confuse_matrix: Dict[str, int] = {
             'pred_ileocecal_gt_ileocecal': (
-                        torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+                    torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
             'pred_ileocecal_gt_nofeature': (
-                        torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+                    torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
             'pred_nofeature_gt_ileocecal': (
-                        torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+                    torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
             'pred_nofeature_gt_nofeature': (
-                        torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+                    torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
         }
-        self.log_dict(confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+        self.log_dict(self.val_confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
     def test_step(self, batch, batch_idx: int):
         x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
@@ -106,8 +113,28 @@ class IleocecalClassifier(ResNet50Classifier):
         # 计算test_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
         self.log('test_acc', acc, prog_bar=True, logger=True, sync_dist=True)
-        precision = (torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum() / \
-                    (torch.eq(y_hat.argmax(dim=-1), 0).float().sum())
+        self.test_confuse_matrix: Dict[str, int] = {
+            'pred_ileocecal_gt_ileocecal': (
+                    torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+            'pred_ileocecal_gt_nofeature': (
+                    torch.eq(y_hat.argmax(dim=-1), 0) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+            'pred_nofeature_gt_ileocecal': (
+                    torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 0)).float().sum(),
+            'pred_nofeature_gt_nofeature': (
+                    torch.eq(y_hat.argmax(dim=-1), 1) & torch.eq(y.argmax(dim=-1), 1)).float().sum(),
+        }
+        self.log_dict(self.test_confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+
+    def on_validation_epoch_end(self):
+        precision = self.val_confuse_matrix['pred_ileocecal_gt_ileocecal'] / \
+                    (self.val_confuse_matrix['pred_ileocecal_gt_ileocecal']
+                     + self.val_confuse_matrix['pred_ileocecal_gt_nofeature'])
+        self.log('val_precision', precision, prog_bar=True, logger=True, sync_dist=True)
+
+    def on_test_epoch_end(self):
+        precision = self.test_confuse_matrix['pred_ileocecal_gt_ileocecal'] / \
+                    (self.test_confuse_matrix['pred_ileocecal_gt_ileocecal']
+                     + self.test_confuse_matrix['pred_ileocecal_gt_nofeature'])
         self.log('test_precision', precision, prog_bar=True, logger=True, sync_dist=True)
 
     def on_test_epoch_start(self):
