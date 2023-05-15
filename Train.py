@@ -130,3 +130,7 @@ def train():
 
 if __name__ == '__main__':
     train()
+    # from lightning.pytorch import *
+    # seed_everything(0)
+    # from lightning.fabric.utilities.seed import pl_worker_init_function
+    # torch.backends.cudnn.benchmark = False
