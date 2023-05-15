@@ -111,14 +111,3 @@ class ResNet152(ResNet):
     def __init__(self, num_classes):
         super(ResNet152, self).__init__(Bottleneck, [3, 8, 36, 3], num_classes=num_classes)
 
-
-def test_resnet50():
-    net = ResNet50(3)
-    x = torch.randn(1, 3, 224, 224)
-    y = net(x)
-    print(y.size())
-    print(net)
-
-
-if __name__ == "__main__":
-    test_resnet50()
