@@ -1,4 +1,5 @@
-from Classifier.DataModule import TestColonoscopySiteQualityDataModule
+from Classifier.DataModule import *
 
 if __name__ == '__main__':
-    TestColonoscopySiteQualityDataModule()
+    TestColonoscopySiteQualityDataModule_SiteQuality()
+    TestColonoscopySiteQualityDataModule_IleocecalDetect()

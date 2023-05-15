@@ -75,7 +75,7 @@ class IleocecalClassifier(ResNet50Classifier):
             epochs: int = 50,
             **kwargs,
     ):
-        super().__init__(input_shape, num_classes, batch_size, lr, b1, b2, epochs, kwargs)
+        super().__init__(input_shape, num_classes, batch_size, lr, b1, b2, epochs, **kwargs)
         self.val_confuse_matrix = None
         self.test_confuse_matrix = None
 
