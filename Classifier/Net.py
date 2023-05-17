@@ -1,6 +1,4 @@
 import torch.nn as nn
-from torchvision.models import ResNet
-from torchvision.models.resnet import BasicBlock, Bottleneck
 
 __all__ = ['ResNet50', 'ResNet101', 'ResNet152']
 
@@ -69,8 +67,6 @@ class ResNet(nn.Module):
         for m in self.modules():
             if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                 nn.init.constant_(m.bn3.weight, 0)
-            elif isinstance(m, BasicBlock) and m.bn2.weight is not None:
-                nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block_type, out_channels, block_num, stride=1):
         down_sample = None
