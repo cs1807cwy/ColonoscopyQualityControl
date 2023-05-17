@@ -27,17 +27,17 @@ csv
 ```
 Log files are saved in: (you may modify this via config YAML, see below)
 ```
-<ProjectRoot>/Experiment/
+<ProjectRoot>/<TaskConfig>/Experiment/
 ```
 
 Example config YAML for training and testing can be found in:
 ```
-<ProjectRoot>/Config/
+<ProjectRoot>/Config/<TaskConfig>
 ```
 
 Many key configurations are detailly noted in:
 ```
-<ProjectRoot>/Config/config_train_example.yaml
+<ProjectRoot>/Config/<TaskConfig>/config_train_example.yaml
 
 ```
-Also please refer to the Docs: [Pytorch Lighning 2.0.2](https://pytorch-lightning.readthedocs.io/en/2.0.2/starter/introduction.html)
+Also please refer to the Docs: [Pytorch Lighting 2.0.2](https://pytorch-lightning.readthedocs.io/en/2.0.2/starter/introduction.html)
