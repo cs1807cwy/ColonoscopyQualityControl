@@ -1,4 +1,6 @@
 import torch.nn as nn
+from torchvision.models import ResNet
+from torchvision.models.resnet import BasicBlock, Bottleneck
 
 __all__ = ['ResNet50', 'ResNet101', 'ResNet152']
 
@@ -62,6 +64,13 @@ class ResNet(nn.Module):
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
+        # 每个残差branch的最后一个BN层采用Zero-Init方法, 参考 https://arxiv.org/abs/1706.02677
+        for m in self.modules():
+            if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                nn.init.constant_(m.bn3.weight, 0)
+            elif isinstance(m, BasicBlock) and m.bn2.weight is not None:
+                nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block_type, out_channels, block_num, stride=1):
         down_sample = None
