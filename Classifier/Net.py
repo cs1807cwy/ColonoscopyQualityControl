@@ -1,6 +1,4 @@
 import torch.nn as nn
-from torchvision.models import ResNet
-from torchvision.models.resnet import BasicBlock, Bottleneck
 
 __all__ = ['ResNet50', 'ResNet101', 'ResNet152']
 
