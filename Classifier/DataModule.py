@@ -144,6 +144,5 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
             return {}
 
 
-
 if __name__ == '__main__':
     pass

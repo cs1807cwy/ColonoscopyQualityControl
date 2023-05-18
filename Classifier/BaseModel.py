@@ -2,7 +2,7 @@ import torch
 from lightning.pytorch import LightningModule
 from typing import Tuple
 
-from Network import *
+from .Network import *
 
 
 class ResNet50Classifier(LightningModule):
@@ -65,6 +65,7 @@ class ResNet101Classifier(LightningModule):
         opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
+
 
 class ResNet152Classifier(LightningModule):
     def __init__(
