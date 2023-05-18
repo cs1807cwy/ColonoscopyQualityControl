@@ -12,7 +12,7 @@ class ResNet50Classifier(LightningModule):
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
-            b1: float = 0.5,
+            b1: float = 0.9,
             b2: float = 0.999,
             epochs: int = 50,
             **kwargs,
@@ -31,7 +31,7 @@ class ResNet50Classifier(LightningModule):
         lr = self.hparams.lr
         b1 = self.hparams.b1
         b2 = self.hparams.b2
-        opt = torch.optim.Adam(self.classifier.parameters(), lr=lr, betas=(b1, b2))
+        opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
 
@@ -43,7 +43,7 @@ class ResNet101Classifier(LightningModule):
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
-            b1: float = 0.5,
+            b1: float = 0.9,
             b2: float = 0.999,
             epochs: int = 50,
             **kwargs,
@@ -62,7 +62,7 @@ class ResNet101Classifier(LightningModule):
         lr = self.hparams.lr
         b1 = self.hparams.b1
         b2 = self.hparams.b2
-        opt = torch.optim.Adam(self.classifier.parameters(), lr=lr, betas=(b1, b2))
+        opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
 
@@ -73,7 +73,7 @@ class ResNet152Classifier(LightningModule):
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
-            b1: float = 0.5,
+            b1: float = 0.9,
             b2: float = 0.999,
             epochs: int = 50,
             **kwargs,
@@ -92,6 +92,6 @@ class ResNet152Classifier(LightningModule):
         lr = self.hparams.lr
         b1 = self.hparams.b1
         b2 = self.hparams.b2
-        opt = torch.optim.Adam(self.classifier.parameters(), lr=lr, betas=(b1, b2))
+        opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
