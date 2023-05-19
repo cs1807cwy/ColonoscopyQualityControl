@@ -1,8 +1,12 @@
+import os
+
 import torch
 import torch.nn.functional as F
 
 from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union, Tuple
 from collections import defaultdict
+
+import torchvision.utils
 
 from .BaseModel import *
 
@@ -78,7 +82,7 @@ class SiteQualityClassifier(ResNet50Classifier):
         self.log_dict(self.validation_confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
     def test_step(self, batch, batch_idx: int):
-        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
+        x, y, _ = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.])
         y_hat = self(x)
         # 计算test_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
@@ -141,7 +145,7 @@ class CleansingClassifier(ResNet50Classifier):
         self.log_dict(self.validation_confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
     def test_step(self, batch, batch_idx: int):
-        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.,0.])
+        x, y, _ = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.,0.])
         y_hat = self(x)
         # 计算test_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
@@ -159,10 +163,11 @@ class IleocecalClassifier(ResNet50Classifier):
             b1: float = 0.5,
             b2: float = 0.999,
             epochs: int = 50,
+            save_dir: str = 'test_viz',
             **kwargs,
     ):
         super().__init__(input_shape, num_classes, batch_size, lr, b1, b2, epochs, **kwargs)
-        self.validation_confuse_matrix = None
+        self.confuse_matrix = None
         self.index_label: Dict[int, str] = {
             0: 'ileocecal',
             1: 'nofeature'
@@ -177,7 +182,7 @@ class IleocecalClassifier(ResNet50Classifier):
         self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         # 计算train_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
-        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log('train_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx: int):
@@ -189,25 +194,60 @@ class IleocecalClassifier(ResNet50Classifier):
 
         for k1, v1 in self.index_label.items():
             for k2, v2 in self.index_label.items():
-                self.validation_confuse_matrix[f'pred_{v1}_gt_{v2}'] += \
+                self.confuse_matrix[f'pred_{v1}_gt_{v2}'] += \
                     (torch.eq(y_hat.argmax(dim=-1), k1) & torch.eq(y.argmax(dim=-1), k2)).float().sum()
 
     def test_step(self, batch, batch_idx: int):
-        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.])
+        x, y, ox = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.])，ox是原始图像tensor
         y_hat = self(x)
         # 计算test_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
         self.log('test_acc', acc, prog_bar=True, logger=True, sync_dist=True)
 
+        for k1, v1 in self.index_label.items():
+            for k2, v2 in self.index_label.items():
+                self.confuse_matrix[f'pred_{v1}_gt_{v2}'] += \
+                    (torch.eq(y_hat.argmax(dim=-1), k1) & torch.eq(y.argmax(dim=-1), k2)).float().sum()
+
+        for idx, sample in enumerate(zip(x, y, y_hat, ox)):
+            img, gt_label, pred_label, origin_img = sample
+            pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
+            gt_idx = int(gt_label.argmax(dim=-1).cpu().numpy())
+            if gt_idx != pred_idx:
+                torchvision.utils.save_image(
+                    img,
+                    os.path.join(self.hparams.save_dir,
+                                 f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
+                                 f'aug_batch_{batch_idx}_{idx}.png'))
+                torchvision.utils.save_image(
+                    origin_img,
+                    os.path.join(self.hparams.save_dir,
+                                 f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
+                                 f'org_batch_{batch_idx}_{idx}.png'))
+
     def on_validation_epoch_start(self):
-        self.validation_confuse_matrix: defaultdict = defaultdict(int)
+        self.confuse_matrix: defaultdict = defaultdict(int)
 
     def on_validation_epoch_end(self):
-        true_positive = self.validation_confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[0]}']
-        true_negative = self.validation_confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[1]}']
+        true_positive = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[0]}']
+        true_negative = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[1]}']
         precision: float = 0. if (true_positive + true_negative) == 0 else float(true_positive) / float(true_positive + true_negative)
-        self.log('val_precision', precision, logger=True, sync_dist=True)
-        self.log_dict(self.validation_confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+        self.log('val_precision', precision, prog_bar=True, logger=True, sync_dist=True)
+        self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+
+    def on_test_epoch_start(self):
+        for k1, v1 in self.index_label.items():
+            for k2, v2 in self.index_label.items():
+                if k1 != k2:
+                    os.makedirs(os.path.join(self.hparams.save_dir, f'pred_{v1}_gt_{v2}'), exist_ok=True)
+        self.confuse_matrix: defaultdict = defaultdict(int)
+
+    def on_test_epoch_end(self):
+        true_positive = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[0]}']
+        true_negative = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[1]}']
+        precision: float = 0. if (true_positive + true_negative) == 0 else float(true_positive) / float(true_positive + true_negative)
+        self.log('test_precision', precision, prog_bar=True, logger=True, sync_dist=True)
+        self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
 class IleocecalClassifier_ViT_B(ViT_B_Classifier):
 
@@ -221,6 +261,7 @@ class IleocecalClassifier_ViT_B(ViT_B_Classifier):
             b1: float = 0.5,
             b2: float = 0.999,
             epochs: int = 50,
+            save_path: str = 'test',
             **kwargs,
     ):
         super().__init__(input_shape, pretrained, num_classes, batch_size, lr, b1, b2, epochs, **kwargs)
@@ -255,7 +296,7 @@ class IleocecalClassifier_ViT_B(ViT_B_Classifier):
                     (torch.eq(y_hat.argmax(dim=-1), k1) & torch.eq(y.argmax(dim=-1), k2)).float().sum()
 
     def test_step(self, batch, batch_idx: int):
-        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.])
+        x, y, _ = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.])
         y_hat = self(x)
         # 计算test_acc
         acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
@@ -268,5 +309,10 @@ class IleocecalClassifier_ViT_B(ViT_B_Classifier):
         true_positive = self.validation_confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[0]}']
         true_negative = self.validation_confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[1]}']
         precision: float = 0. if (true_positive + true_negative) == 0 else float(true_positive) / float(true_positive + true_negative)
-        self.log('val_precision', precision, logger=True, sync_dist=True)
+        self.log('val_precision', precision, prog_bar=True, logger=True, sync_dist=True)
         self.log_dict(self.validation_confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+
+    def on_test_epoch_start(self):
+        for k1, v1 in self.index_label.items():
+            for k2, v2 in self.index_label.items():
+                os.makedirs(os.path.join(self.hparams.save_dir, f'pred_{v1}_gt_{v2}'), exist_ok=True)

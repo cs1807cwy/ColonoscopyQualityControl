@@ -154,3 +154,8 @@ cython_debug/
 # Datasets
 Example/
 Experiment/
+
+# log & test files
+log/
+test_output/
+test_viz/

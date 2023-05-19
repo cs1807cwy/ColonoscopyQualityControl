@@ -24,6 +24,7 @@ class ColonoscopySiteQualityDataset(Dataset):
                  image_label: Dict[str, str],
                  sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
                  for_validation: bool = False,
+                 for_test: bool = False,  # for_test 有最高优先级
                  resize_shape: Tuple[int, int] = (306, 306),
                  center_crop_shape: Tuple[int, int] = (256, 256),
                  brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
@@ -40,7 +41,8 @@ class ColonoscopySiteQualityDataset(Dataset):
                 如果为int型，则每个epoch对全部数据子集按固定数量采样；
                 如果为float型，则每个epoch对全部数据子集按固定比例采样；
                 如果为Dict型，可对每个数据子集的采样率进行规定，值类型可以是int, float，按前述规则处理，缺失键时按None规则处理
-            for_validation: false时作为训练集；true时作为验证集
+            for_validation: true时作为验证集，仅当for_test为false
+            for_test: true时作为测试集，最高优先级
             resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
             center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
             brightness_jitter: 亮度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - brightness), 1 + brightness]
@@ -65,6 +67,9 @@ class ColonoscopySiteQualityDataset(Dataset):
             print(f'label_code: {self.label_code}')
 
         self.for_validation: bool = for_validation
+        self.for_test: bool = for_test
+        if self.for_test:
+            self.for_validation = True
         self.transform_train = transforms.Compose([
             transforms.ToTensor(),
             # 缩放和截去黑边
@@ -102,11 +107,11 @@ class ColonoscopySiteQualityDataset(Dataset):
                     self.index_content[k] = [osp.join(dir_path, name) for name in index_file_content['validation']]
                 else:
                     self.index_content[k] = [osp.join(dir_path, name) for name in index_file_content['train']]
+                    random.shuffle(self.index_content[k])  # 混洗每一个用于训练的数据子集
                 self.index_length[k] = len(self.index_content[k])
-                random.shuffle(self.index_content[k])  # 混洗每一个用于训练的数据子集
 
         if dry_run:
-            if for_validation:
+            if self.for_validation:
                 print('[Validation]')
             else:
                 print('[Train]')
@@ -128,7 +133,7 @@ class ColonoscopySiteQualityDataset(Dataset):
         # 取数据计数
         self.count: int = 0
 
-        if for_validation:
+        if self.for_validation:
             self._validation_generate_index_map()
             self.sample_per_epoch = sum(self.index_length.values())
         else:
@@ -189,8 +194,8 @@ class ColonoscopySiteQualityDataset(Dataset):
         if self.dry_run:
             item = 0
         else:
-            item: Image.Image = Image.open(image_path).convert('RGB')
-            item: torch.Tensor = self.transform_validation(item) if self.for_validation else self.transform_train(item)
+            image: Image.Image = Image.open(image_path).convert('RGB')
+            item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(image)
         label: str = self.image_label[subset_key]
         label_code: torch.Tensor = self.label_code[label]
         basename: str = osp.basename(image_path)
@@ -198,7 +203,10 @@ class ColonoscopySiteQualityDataset(Dataset):
         # 图像Tensor，标签编码，标签，原始标签，图像文件名
         if self.dry_run:
             return item, label_code, label, subset_key, basename
-        else:
+        elif self.for_test:
+            origin_item = transforms.ToTensor()(image)
+            return item, label_code, origin_item
+        elif self.for_validation:
             return item, label_code
 
     def __len__(self) -> int:

@@ -78,6 +78,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
 
         self.train_dataset: ColonoscopySiteQualityDataset = None
         self.validation_dataset: ColonoscopySiteQualityDataset = None
+        self.test_dataset = None
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
@@ -87,6 +88,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 self.image_index_dir,
                 self.image_label,
                 self.sample_weight,
+                False,
                 False,
                 self.resize_shape,
                 self.center_crop_shape,
@@ -99,6 +101,21 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 self.image_index_dir,
                 self.image_label,
                 self.sample_weight,
+                True,
+                False,
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+                self.dry_run
+            )
+        elif stage == 'test':
+            self.test_dataset = ColonoscopySiteQualityDataset(
+                self.image_index_dir,
+                self.image_label,
+                self.sample_weight,
+                True,
                 True,
                 self.resize_shape,
                 self.center_crop_shape,
@@ -117,7 +134,18 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         )
 
     def val_dataloader(self):
-        return DataLoader(self.validation_dataset, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(
+            self.validation_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
 
     def size(self, part=None) -> Optional[int]:
         if part == 'train' or part is None:
