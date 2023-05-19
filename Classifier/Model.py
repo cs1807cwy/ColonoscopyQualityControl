@@ -218,12 +218,12 @@ class IleocecalClassifier(ResNet50Classifier):
                     img,
                     os.path.join(self.hparams.save_dir,
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
-                                 f'aug_batch_{batch_idx}_{idx}.png'))
+                                 f'batch_{batch_idx}_{idx}_augment.png'))
                 torchvision.utils.save_image(
                     origin_img,
                     os.path.join(self.hparams.save_dir,
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
-                                 f'org_batch_{batch_idx}_{idx}.png'))
+                                 f'batch_{batch_idx}_{idx}_origin.png'))
 
     def on_validation_epoch_start(self):
         self.confuse_matrix: defaultdict = defaultdict(int)
@@ -248,6 +248,7 @@ class IleocecalClassifier(ResNet50Classifier):
         precision: float = 0. if (true_positive + true_negative) == 0 else float(true_positive) / float(true_positive + true_negative)
         self.log('test_precision', precision, prog_bar=True, logger=True, sync_dist=True)
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
+
 
 class IleocecalClassifier_ViT_B(ViT_B_Classifier):
 
