@@ -134,3 +134,9 @@ if __name__ == '__main__':
     # seed_everything(0)
     # from lightning.fabric.utilities.seed import pl_worker_init_function
     # torch.backends.cudnn.benchmark = False
+    # import torch
+    #
+    # content = torch.load(r"F:\CBIBF3\storage\BaiduNetdisk\Downloads\swin_tiny_patch4_window7_224_22k.pth")
+    # print(content.keys())  # keys()
+    # # 之后有其他需求比如要看 key 为 model 的内容有啥
+    # print(content['model'])
