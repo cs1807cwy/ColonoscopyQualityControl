@@ -1,22 +1,22 @@
 # lightning.pytorch==2.0.1.post0
-# 200_test_IleocecalClassifier_ResNet50_epoch1000
+# 100_test_CleansingClassifier_ResNet50_epoch1000
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: auto
-  devices: [ 0 ]
+  devices: [ 6 ]
   num_nodes: 1
   precision: 32-true
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "200_test_IleocecalClassifier_ResNet50_epoch1000"          # note: name of the current experiment
+        name: "100_test_CleansingClassifier_ResNet50_epoch1000"          # note: name of the current experiment
         version: "tensorboard_test"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "200_test_IleocecalClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
+        name: "100_test_CleansingClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
         version: "csv_test"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -53,24 +53,34 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/200_test_IleocecalClassifier_ResNet50_epoch1000"
-ckpt_path: "Experiment/200_train_IleocecalClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/IleocecalClassifier_best_val_precision_epoch=132_val_acc=0.9623_val_precision=0.8894.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/100_test_CleansingClassifier_ResNet50_epoch1000"
+ckpt_path: "Experiment/100_train_CleansingClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/CleansingClassifier_best_val_acc_epoch=363_val_acc=1.0000.ckpt" # note: reload from checkpoint
 data:
   class_path: Classifier.ColonoscopySiteQualityDataModule
   init_args:
     image_index_dir:
-      UIHIMG-ileocecal:
-        index: "../Datasets/KIndex/UIHIMG/ileocecal/fold0.json"
-        dir: "../Datasets/UIHIMG/ileocecal"
-      UIHIMG-nofeature:
-        index: "../Datasets/KIndex/UIHIMG/nofeature/fold0.json"
-        dir: "../Datasets/UIHIMG/nofeature"
+      Nerthus-0:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/0/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/0"
+      Nerthus-1:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/1/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/1"
+      Nerthus-2:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/2/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/2"
+      Nerthus-3:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/3/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/3"
     image_label:
-      UIHIMG-ileocecal: "ileocecal"
-      UIHIMG-nofeature: "nofeature"
+      Nerthus-0: "bbps0"
+      Nerthus-1: "bbps1"
+      Nerthus-2: "bbps2"
+      Nerthus-3: "bbps3"
     sample_weight:
-      UIHIMG-ileocecal: 5163
-      UIHIMG-nofeature: 5163
+      Nerthus-0: 450
+      Nerthus-1: 450
+      Nerthus-2: 450
+      Nerthus-3: 450
     resize_shape:
       - 306
       - 306
@@ -81,18 +91,18 @@ data:
     contrast_jitter: 0.8
     saturation_jitter: 0.8
     batch_size: 1
-    num_workers: 4
+    num_workers: 8
     dry_run: false
 model:
-  class_path: Classifier.IleocecalClassifier
+  class_path: Classifier.CleansingClassifier
   init_args:
     input_shape:
       - 256
       - 256
-    num_classes: 2
+    num_classes: 4
     batch_size: 1
     lr: 0.0001
     b1: 0.9
     b2: 0.999
     epochs: 1000
-    save_dir: "test_viz"
+    save_dir: "Experiment/100_test_CleansingClassifier_ResNet50_epoch1000/test_viz"

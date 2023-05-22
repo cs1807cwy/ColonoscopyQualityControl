@@ -1,5 +1,5 @@
 # lightning.pytorch==2.0.1.post0
-# 200_test_IleocecalClassifier_ResNet50_epoch1000
+# 000_test_SiteQualityClassifier_ResNet50_epoch1000
 seed_everything: 0
 trainer:
   accelerator: gpu
@@ -11,12 +11,12 @@ trainer:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "200_test_IleocecalClassifier_ResNet50_epoch1000"          # note: name of the current experiment
+        name: "000_test_SiteQualityClassifier_ResNet50_epoch1000"          # note: name of the current experiment
         version: "tensorboard_test"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "200_test_IleocecalClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
+        name: "000_test_SiteQualityClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
         version: "csv_test"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -53,8 +53,8 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/200_test_IleocecalClassifier_ResNet50_epoch1000"
-ckpt_path: "Experiment/200_train_IleocecalClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/IleocecalClassifier_best_val_precision_epoch=132_val_acc=0.9623_val_precision=0.8894.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/000_test_SiteQualityClassifier_ResNet50_epoch1000"
+ckpt_path: "Experiment/000_train_SiteQualityClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/SiteQualityClassifier_best_val_acc_epoch=200_val_acc=0.9230_val_in_out_acc=0.9897.ckpt" # note: reload from checkpoint
 data:
   class_path: Classifier.ColonoscopySiteQualityDataModule
   init_args:
@@ -65,12 +65,42 @@ data:
       UIHIMG-nofeature:
         index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/nofeature/fold0.json"
         dir: "/mnt/data4/cwy/Datasets/UIHIMG/nofeature"
+      UIHIMG-nonsense:
+        index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/nonsense/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/UIHIMG/nonsense"
+      UIHIMG-outside:
+        index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/outside/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/UIHIMG/outside"
+      Nerthus-0:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/0/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/0"
+      Nerthus-1:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/1/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/1"
+      Nerthus-2:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/2/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/2"
+      Nerthus-3:
+        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/3/fold0.json"
+        dir: "/mnt/data4/cwy/Datasets/Nerthus/3"
     image_label:
-      UIHIMG-ileocecal: "ileocecal"
-      UIHIMG-nofeature: "nofeature"
+      UIHIMG-ileocecal: "fine"
+      UIHIMG-nofeature: "fine"
+      UIHIMG-nonsense: "nonsense"
+      UIHIMG-outside: "outside"
+      Nerthus-0: "fine"
+      Nerthus-1: "fine"
+      Nerthus-2: "fine"
+      Nerthus-3: "fine"
     sample_weight:
-      UIHIMG-ileocecal: 5163
-      UIHIMG-nofeature: 5163
+      UIHIMG-ileocecal: 1666
+      UIHIMG-nofeature: 1666
+      UIHIMG-nonsense: 5000
+      UIHIMG-outside: 5000
+      Nerthus-0: 417
+      Nerthus-1: 417
+      Nerthus-2: 417
+      Nerthus-3: 417
     resize_shape:
       - 306
       - 306
@@ -81,18 +111,18 @@ data:
     contrast_jitter: 0.8
     saturation_jitter: 0.8
     batch_size: 1
-    num_workers: 8
+    num_workers: 28
     dry_run: false
 model:
-  class_path: Classifier.IleocecalClassifier
+  class_path: Classifier.SiteQualityClassifier
   init_args:
     input_shape:
       - 256
       - 256
-    num_classes: 2
+    num_classes: 3
     batch_size: 1
     lr: 0.0001
     b1: 0.9
     b2: 0.999
     epochs: 1000
-    save_dir: "Experiment/200_test_IleocecalClassifier_ResNet50_epoch1000/test_viz"
+    save_dir: "Experiment/000_test_SiteQualityClassifier_ResNet50_epoch1000/test_viz"

@@ -206,7 +206,7 @@ class ColonoscopySiteQualityDataset(Dataset):
         elif self.for_test:
             origin_item = transforms.ToTensor()(image)
             return item, label_code, origin_item
-        elif self.for_validation:
+        else:  # validation & train
             return item, label_code
 
     def __len__(self) -> int:

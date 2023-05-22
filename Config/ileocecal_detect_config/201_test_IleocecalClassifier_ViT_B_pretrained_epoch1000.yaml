@@ -1,9 +1,9 @@
 # lightning.pytorch==2.0.1.post0
-# 200_test_IleocecalClassifier_ResNet50_epoch1000
+# 201_test_IleocecalClassifier_ViT_B_pretrained_epoch1000
 seed_everything: 0
 trainer:
   accelerator: gpu
-  strategy: auto
+  strategy: ddp
   devices: [ 6 ]
   num_nodes: 1
   precision: 32-true
@@ -11,13 +11,13 @@ trainer:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "200_test_IleocecalClassifier_ResNet50_epoch1000"          # note: name of the current experiment
-        version: "tensorboard_test"  # note: version name specified by the logger, for formally experiments, please specify a version number
+        name: "201_test_IleocecalClassifier_ViT_B_pretrained_epoch1000"          # note: name of the current experiment
+        version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "200_test_IleocecalClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
-        version: "csv_test"          # note: version name specified by the logger, for formally experiments, please specify a version number
+        name: "201_test_IleocecalClassifier_ViT_B_pretrained_epoch1000"          # note: keep the same experiment name
+        version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
       init_args:
@@ -36,7 +36,7 @@ trainer:
   val_check_interval: null
   check_val_every_n_epoch: 1
   num_sanity_val_steps: null
-  log_every_n_steps: 1
+  log_every_n_steps: 10
   enable_checkpointing: true
   enable_progress_bar: null
   enable_model_summary: null
@@ -53,8 +53,8 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/200_test_IleocecalClassifier_ResNet50_epoch1000"
-ckpt_path: "Experiment/200_train_IleocecalClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/IleocecalClassifier_best_val_precision_epoch=132_val_acc=0.9623_val_precision=0.8894.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/201_test_IleocecalClassifier_ViT_B_pretrained_epoch1000"
+ckpt_path: "Experiment/201_train_IleocecalClassifier_ViT_B_pretrained_epoch1000/tensorboard_train_val/checkpoints/IleocecalClassifier_ViT_B_pretrained_best_val_precision_epoch=280_val_acc=0.9921_val_precision=0.9625.ckpt" # note: reload from checkpoint
 data:
   class_path: Classifier.ColonoscopySiteQualityDataModule
   init_args:
@@ -72,11 +72,11 @@ data:
       UIHIMG-ileocecal: 5163
       UIHIMG-nofeature: 5163
     resize_shape:
-      - 306
-      - 306
+      - 269
+      - 269
     center_crop_shape:
-      - 256
-      - 256
+      - 224
+      - 224
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
@@ -84,15 +84,16 @@ data:
     num_workers: 8
     dry_run: false
 model:
-  class_path: Classifier.IleocecalClassifier
+  class_path: Classifier.IleocecalClassifier_ViT_B
   init_args:
     input_shape:
-      - 256
-      - 256
+      - 224
+      - 224
+    pretrained: true
     num_classes: 2
     batch_size: 1
     lr: 0.0001
     b1: 0.9
     b2: 0.999
     epochs: 1000
-    save_dir: "Experiment/200_test_IleocecalClassifier_ResNet50_epoch1000/test_viz"
+    save_dir: "Experiment/201_test_IleocecalClassifier_ViT_B_pretrained_epoch1000/test_viz"
