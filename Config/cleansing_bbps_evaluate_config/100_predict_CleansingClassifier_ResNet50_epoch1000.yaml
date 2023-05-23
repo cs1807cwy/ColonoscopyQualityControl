@@ -1,0 +1,83 @@
+# lightning.pytorch==2.0.1.post0
+# 100_predict_CleansingClassifier_ResNet50_epoch1000
+seed_everything: 0
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: [ 0 ]
+  num_nodes: 1
+  precision: 32-true
+  logger:
+    - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
+      init_args:
+        save_dir: "Experiment"            # note: directory to save log files
+        name: "100_predict_CleansingClassifier_ResNet50_epoch1000"          # note: name of the current experiment
+        version: "tensorboard_test"  # note: version name specified by the logger, for formally experiments, please specify a version number
+    - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
+      init_args:
+        save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
+        name: "100_predict_CleansingClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
+        version: "csv_test"          # note: version name specified by the logger, for formally experiments, please specify a version number
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
+      init_args:
+        refresh_rate: 1 # note: after processing these batches, tqdm'll update its display
+  fast_dev_run: false
+  max_epochs: 1
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: null
+  log_every_n_steps: 1
+  enable_checkpointing: true
+  enable_progress_bar: null
+  enable_model_summary: null
+  accumulate_grad_batches: 1
+  gradient_clip_val: null
+  gradient_clip_algorithm: null
+  deterministic: null
+  benchmark: null
+  inference_mode: true
+  use_distributed_sampler: true
+  profiler: null
+  detect_anomaly: false
+  barebones: false
+  plugins: null
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: "Experiment/100_predict_CleansingClassifier_ResNet50_epoch1000"
+ckpt_path: "Experiment/100_train_CleansingClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/CleansingClassifier_best_val_acc_epoch=363_val_acc=1.0000.ckpt" # note: reload from checkpoint
+data:
+  class_path: Classifier.ColonoscopySiteQualityDataModule
+  init_args:
+    image_index_dir: "/mnt/data4/cwy/Datasets/Nerthus"
+    resize_shape:
+      - 306
+      - 306
+    center_crop_shape:
+      - 256
+      - 256
+    batch_size: 1
+    num_workers: 8
+    dry_run: false
+model:
+  class_path: Classifier.CleansingClassifier
+  init_args:
+    input_shape:
+      - 256
+      - 256
+    num_classes: 4
+    batch_size: 1
+    lr: 0.0001
+    b1: 0.9
+    b2: 0.999
+    epochs: 1000
+    save_dir: "Experiment/100_predict_CleansingClassifier_ResNet50_epoch1000/predict"

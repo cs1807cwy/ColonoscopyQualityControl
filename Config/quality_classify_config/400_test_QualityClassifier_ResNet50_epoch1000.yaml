@@ -1,5 +1,5 @@
 # lightning.pytorch==2.0.1.post0
-# 000_test_SiteQualityClassifier_ResNet50_epoch1000
+# 400_test_QualityClassifier_ResNet50_epoch1000
 seed_everything: 0
 trainer:
   accelerator: gpu
@@ -11,12 +11,12 @@ trainer:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "000_test_SiteQualityClassifier_ResNet50_epoch1000"          # note: name of the current experiment
+        name: "400_test_QualityClassifier_ResNet50_epoch1000"          # note: name of the current experiment
         version: "tensorboard_test"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "000_test_SiteQualityClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
+        name: "400_test_QualityClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
         version: "csv_test"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -53,8 +53,8 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/000_test_SiteQualityClassifier_ResNet50_epoch1000"
-ckpt_path: "Experiment/000_train_SiteQualityClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/SiteQualityClassifier_best_val_acc_epoch=200_val_acc=0.9230_val_in_out_acc=0.9897.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/400_test_QualityClassifier_ResNet50_epoch1000"
+ckpt_path: "Experiment/400_train_QualityClassifier_ResNet50_epoch1000/tensorboard_train_val/checkpoints/last.ckpt" # note: reload from checkpoint
 data:
   class_path: Classifier.ColonoscopySiteQualityDataModule
   init_args:
@@ -93,14 +93,14 @@ data:
       Nerthus-2: "fine"
       Nerthus-3: "fine"
     sample_weight:
-      UIHIMG-ileocecal: 1250
-      UIHIMG-nofeature: 1251
-      UIHIMG-nonsense: 5000
-      UIHIMG-outside: 1251
-      Nerthus-0: 312
-      Nerthus-1: 312
-      Nerthus-2: 312
-      Nerthus-3: 312
+      UIHIMG-ileocecal: 1500
+      UIHIMG-nofeature: 1500
+      UIHIMG-nonsense: 6000
+      UIHIMG-outside: 1500
+      Nerthus-0: 375
+      Nerthus-1: 375
+      Nerthus-2: 375
+      Nerthus-3: 375
     resize_shape:
       - 306
       - 306
@@ -125,4 +125,4 @@ model:
     b1: 0.9
     b2: 0.999
     epochs: 1000
-    save_dir: "Experiment/000_test_SiteQualityClassifier_ResNet50_epoch1000/test_viz"
+    save_dir: "Experiment/400_test_QualityClassifier_ResNet50_epoch1000/test_viz"

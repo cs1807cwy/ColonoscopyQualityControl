@@ -321,6 +321,26 @@ class CleansingClassifier(ResNet50Classifier):
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
+    def on_predict_epoch_start(self):
+        for k1, v1 in self.index_label.items():
+            os.makedirs(os.path.join(self.hparams.save_dir, f'{v1}'), exist_ok=True)
+
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[List[int], List[str]]:
+        x, ox = batch  # x是图像tensor，ox是原始图像tensor
+        y_hat = self(x)
+
+        for idx, sample in enumerate(zip(x, y_hat, ox)):
+            img, pred_label, origin_img = sample
+            pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
+            torchvision.utils.save_image(
+                origin_img,
+                os.path.join(self.hparams.save_dir,
+                             f'{self.index_label[pred_idx]}',
+                             f'frame_{batch_idx * batch[0].size(0) + idx: 0>6}.png'))
+        pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
+        pred_labels = [self.index_label[k] for k in pred_label_codes]
+        return pred_label_codes, pred_labels
+
 
 class IleocecalClassifier(ResNet50Classifier):
 

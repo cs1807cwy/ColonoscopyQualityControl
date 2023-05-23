@@ -10,7 +10,7 @@ import torchvision
 import torchvision.transforms as transforms
 from lightning.pytorch import LightningDataModule
 from torch.utils.data import Dataset, DataLoader, random_split
-from .Dataset import *
+from .Dataset import NerthusPredictDataset
 
 
 class ColonoscopySiteQualityDataModule(LightningDataModule):
@@ -28,9 +28,9 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
     def __init__(
             self,
             # Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
-            image_index_dir: Union[str, Dict[str, Dict[str, str]]],  # inner keys: index, dir
+            image_index_dir: Dict[str, Dict[str, str]],  # inner keys: index, dir
             # Dict[数据子集名, 标签]
-            image_label: Dict[str, str] = None,
+            image_label: Dict[str, str],
             sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
             resize_shape: Tuple[int, int] = (306, 306),
             center_crop_shape: Tuple[int, int] = (256, 256),
@@ -64,7 +64,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         """
 
         super().__init__()
-        self.image_index_dir: Union[str, Dict[str, Dict[str, str]]] = image_index_dir
+        self.image_index_dir: Dict[str, Dict[str, str]] = image_index_dir
         self.image_label: Dict[str, str] = image_label
         self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
         self.resize_shape: Tuple[int, int] = resize_shape
@@ -78,8 +78,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
 
         self.train_dataset: ColonoscopySiteQualityDataset = None
         self.validation_dataset: ColonoscopySiteQualityDataset = None
-        self.test_dataset: ColonoscopySiteQualityDataset = None
-        self.predict_dataset: ColonoscopyPredictDataset = None
+        self.test_dataset = None
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
@@ -125,13 +124,6 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 self.saturation_jitter,
                 self.dry_run
             )
-        elif stage == 'predict':
-            self.predict_dataset = ColonoscopyPredictDataset(
-                self.image_index_dir,
-                ['png', 'jpg'],
-                self.resize_shape,
-                self.center_crop_shape
-            )
 
     def train_dataloader(self):
         return DataLoader(
@@ -151,13 +143,6 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
     def test_dataloader(self):
         return DataLoader(
             self.test_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers)
-
-    def predict_dataloader(self):
-        return DataLoader(
-            self.predict_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers)
