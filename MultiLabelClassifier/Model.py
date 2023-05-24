@@ -2,6 +2,7 @@ import os
 
 import math
 import torch
+import numpy as np
 import torch.nn.functional as F
 
 from typing import Any, Dict, Generator, Iterable, List, Optional, Type, Union, Tuple
@@ -22,9 +23,10 @@ class MultilabelClassifier(LightningModule):
             num_classes: int = 6,
             thresh: float = 0.5,
             batch_size: int = 16,
-            lr: float = 1e-4,
-            b1: float = 0.9,
-            b2: float = 0.999,
+            lr: float = 0.01,
+            momentum: float = 0.9,
+            weight_decay: float = 0.0001,
+            step_size: int = 5,
             epochs: int = 1000,
             save_dir: str = 'test_viz',
             **kwargs,
@@ -67,103 +69,164 @@ class MultilabelClassifier(LightningModule):
         loss = F.binary_cross_entropy_with_logits(logit, label_gt, reduction='mean')
         self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
 
-        # 计算train_acc
+        # 计算总体train_mean_acc
         label_pred_tf = torch.ge(logit, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
-        acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
-        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
+        self.log(f'train_thresh_mean_acc', mean_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+
         return loss
 
     def configure_optimizers(self):
-        lr = self.hparams.lr
-        b1 = self.hparams.b1
-        b2 = self.hparams.b2
-        opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
-        return [opt], [lr_scheduler]
+        # optimizer and warmup
+        backbone, classifier = [], []
+        for name, param in self.named_parameters():
+            if 'classify_head' in name:
+                classifier.append(param)
+            else:
+                backbone.append(param)
+        optimizer = torch.optim.SGD(
+            [
+                {'params': backbone, 'lr': self.hparams.lr},
+                {'params': classifier, 'lr': self.hparams.lr * 10.}
+            ],
+            momentum=self.hparams.momentum, weight_decay=self.hparams.weight_decay)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.hparams.step_size, gamma=0.1)
+        return [optimizer], [scheduler]
 
-    """
     def on_validation_epoch_start(self):
         self.confuse_matrix: defaultdict = defaultdict(int)
 
-
     def validation_step(self, batch, batch_idx: int):
-        x, y = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.,0.,0.])
-        y_hat = self(x)
-        # 计算val_acc
-        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
-        self.log('val_acc', acc, prog_bar=True, logger=True, sync_dist=True)
+        image, label_gt = batch
+        logit = self(image)
 
-        for k1, v1 in self.index_label.items():
-            for k2, v2 in self.index_label.items():
-                self.confuse_matrix[f'pred_{v1}_gt_{v2}'] += \
-                    (torch.eq(y_hat.argmax(dim=-1), k1) & torch.eq(y.argmax(dim=-1), k2)).float().sum()
+        # 计算val_acc
+        # label_pred_tf: BoolTensor[B, 6] = B * [outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
+        label_pred_tf = torch.ge(logit, self.hparams.thresh)
+        label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
+        mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
+        self.log('val_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
+
+        for k, v in self.index_label.items():
+            label_pred_k = label_pred_tf[:, k]
+            label_gt_k = label_gt_tf[:, k]
+            self.confuse_matrix[f'label_{v}_TP'] += (label_pred_k & label_gt_k).float().sum()
+            self.confuse_matrix[f'label_{v}_FP'] += (label_pred_k & ~label_gt_k).float().sum()
+            self.confuse_matrix[f'label_{v}_FN'] += (~label_pred_k & label_gt_k).float().sum()
+            self.confuse_matrix[f'label_{v}_TN'] += (~label_pred_k & ~label_gt_k).float().sum()
 
     def on_validation_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
+        metrics = {}
+        for k, v in self.index_label.items():
+            TP = self.confuse_matrix[f'label_{v}_TP']
+            FP = self.confuse_matrix[f'label_{v}_FP']
+            FN = self.confuse_matrix[f'label_{v}_FN']
+            TN = self.confuse_matrix[f'label_{v}_TN']
+            if k == 1:
+                metrics[f'label_{v}_prec'] = float(TP) / float(TP + FP) if TP + FP > 0 else 0.
+            metrics[f'label_{v}_acc'] = float(TP + TN) / float(TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
+        self.log_dict(metrics, logger=True, sync_dist=True)
+
     def on_test_epoch_start(self):
-        for k1, v1 in self.index_label.items():
-            for k2, v2 in self.index_label.items():
-                if k1 != k2:
-                    os.makedirs(os.path.join(self.hparams.save_dir, f'pred_{v1}_gt_{v2}'), exist_ok=True)
         self.confuse_matrix: defaultdict = defaultdict(int)
 
     def test_step(self, batch, batch_idx: int):
-        x, y, ox = batch  # x是图像tensor，y是对应的标签，y形如tensor([1.,0.])，ox是原始图像tensor
-        y_hat = self(x)
-        # 计算test_acc
-        acc = (y_hat.argmax(dim=-1) == y.argmax(dim=-1)).float().mean()
-        self.log('test_acc', acc, prog_bar=True, logger=True, sync_dist=True)
+        image, label_gt = batch
+        logit = self(image)
 
-        for k1, v1 in self.index_label.items():
-            for k2, v2 in self.index_label.items():
-                self.confuse_matrix[f'pred_{v1}_gt_{v2}'] += \
-                    (torch.eq(y_hat.argmax(dim=-1), k1) & torch.eq(y.argmax(dim=-1), k2)).float().sum()
+        # 体内外logit: FloatTensor[B]
+        in_out_logit = logit[:, 0]
+        # 体内外标签: BoolTensor[B]
+        # outside时为True
+        label_in_out_pred = torch.ge(in_out_logit, self.hparams.thresh)
+        # 体内外gt: BoolTensor[B]
+        label_in_out_gt = torch.ge(label_gt[:, 0], self.hparams.thresh)
+        self.confuse_matrix[f'label_{self.index_label[0]}_TP'] += (label_in_out_pred & label_in_out_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[0]}_FP'] += (label_in_out_pred & ~label_in_out_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[0]}_FN'] += (~label_in_out_pred & label_in_out_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[0]}_TN'] += (~label_in_out_pred & ~label_in_out_gt).float().sum()
 
-        for idx, sample in enumerate(zip(x, y, y_hat, ox)):
-            img, gt_label, pred_label, origin_img = sample
-            pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
-            gt_idx = int(gt_label.argmax(dim=-1).cpu().numpy())
-            if gt_idx != pred_idx:
-                torchvision.utils.save_image(
-                    img,
-                    os.path.join(self.hparams.save_dir,
-                                 f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
-                                 f'batch_{batch_idx}_{idx}_augment.png'))
-                torchvision.utils.save_image(
-                    origin_img,
-                    os.path.join(self.hparams.save_dir,
-                                 f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
-                                 f'batch_{batch_idx}_{idx}_origin.png'))
+        # 清洁度logit: FloatTensor[B, 4]
+        cls_logit = logit[:, 2:]
+        # 清洁度label: IntTensor[B] (取预测值最大的，但会被outside标签抑制)
+        label_cls_pred = torch.argmax(cls_logit, dim=-1)
+        # 清洁度gt: IntTensor[B]
+        label_cls_gt = torch.argmax(label_gt[:, 2:], dim=-1)
+        for i in range(2, 6):  # i: predict
+            for j in range(2, 6):  # j: gt
+                self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i]}_gt_{self.index_label[j]}'] += \
+                    (~label_in_out_pred & torch.eq(label_cls_pred, i) & torch.eq(label_cls_gt, j)).float().sum()  # ~label_in_out_pred用于清洁度标签抑制
+
+        # 回盲部logit: FloatTensor[B]
+        ileo_logit = logit[:, 1]
+        # 回盲部标签: BoolTensor[B] (被outside和低cls-bbps0-1标签抑制)
+        label_ileo_pred = ~label_in_out_pred & (torch.eq(label_cls_pred, 2) | torch.eq(label_cls_pred, 3)) & torch.ge(ileo_logit, self.hparams.thresh)
+        # 回盲部gt: BoolTensor[B]
+        label_ileo_gt = torch.ge(label_gt[:, 1], self.hparams.thresh)
+        self.confuse_matrix[f'label_{self.index_label[1]}_TP'] += (label_ileo_pred & label_ileo_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[1]}_FP'] += (label_ileo_pred & ~label_ileo_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[1]}_FN'] += (~label_ileo_pred & label_ileo_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[1]}_TN'] += (~label_ileo_pred & ~label_ileo_gt).float().sum()
 
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
-    def on_predict_epoch_start(self):
-        for k1, v1 in self.index_label.items():
-            os.makedirs(os.path.join(self.hparams.save_dir, f'{v1}'), exist_ok=True)
+        metrics = {}
 
-    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[List[int], List[str]]:
-        x, ox = batch  # x是图像tensor，ox是原始图像tensor
-        y_hat = self(x)
+        # 体内外
+        TP: int = self.confuse_matrix[f'label_{self.index_label[0]}_TP']
+        FP: int = self.confuse_matrix[f'label_{self.index_label[0]}_FP']
+        FN: int = self.confuse_matrix[f'label_{self.index_label[0]}_FN']
+        TN: int = self.confuse_matrix[f'label_{self.index_label[0]}_TN']
+        metrics[f'label_{self.index_label[0]}_acc'] = float(TP + TN) / float(TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
 
-        for idx, sample in enumerate(zip(x, y_hat, ox)):
-            img, pred_label, origin_img = sample
-            pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
-            torchvision.utils.save_image(
-                origin_img,
-                os.path.join(self.hparams.save_dir,
-                             f'{self.index_label[pred_idx]}',
-                             f'frame_{batch_idx * batch[0].size(0) + idx: 0>6}.png'))
-        pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
-        pred_labels = [self.index_label[k] for k in pred_label_codes]
-        return pred_label_codes, pred_labels
-    """
+        # 回盲部
+        TP: int = self.confuse_matrix[f'label_{self.index_label[1]}_TP']
+        FP: int = self.confuse_matrix[f'label_{self.index_label[1]}_FP']
+        FN: int = self.confuse_matrix[f'label_{self.index_label[1]}_FN']
+        TN: int = self.confuse_matrix[f'label_{self.index_label[1]}_TN']
+        metrics[f'label_{self.index_label[1]}_prec'] = float(TP) / float(TP + FP) if TP + FP > 0 else 0.
+        metrics[f'label_{self.index_label[1]}_acc'] = float(TP + TN) / float(TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
 
+        # 清洁度
+        total: int = 0
+        correct: int = 0
+        for i in range(2, 6):  # i: predict
+            for j in range(2, 6):  # j: gt
+                tmp = self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i]}_gt_{self.index_label[j]}']
+                if i == j:
+                    correct += tmp
+                total += tmp
+        metrics[f'label_cleansing_acc'] = float(correct) / float(total) if total > 0 else 0.
 
-def TestMultiLabelClassifier():
-    model = MultilabelClassifier()
-    x = torch.zeros((16, 3, 224, 224))
-    logit = model(x)
-    print(logit.shape)
+        self.log_dict(metrics, logger=True, sync_dist=True)
+
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[np.ndarray, np.ndarray]:
+        image = batch  # x是图像tensor，ox是原始图像tensor
+        logit = self(image)
+
+        # 体内外logit: FloatTensor[B]
+        in_out_logit = logit[:, 0]
+        # 体内外标签: BoolTensor[B]
+        # outside时为True
+        label_in_out_pred = torch.ge(in_out_logit, self.hparams.thresh)
+
+        # 清洁度logit: FloatTensor[B, 4]
+        cls_logit = logit[:, 2:]
+        # 清洁度label: IntTensor[B] (取预测值最大的，但会被outside标签抑制)
+        label_cls_pred = torch.argmax(cls_logit, dim=-1)
+        # 清洁度label_code_pred: BoolTensor[B, 4]
+        label_cls_code_pred = ~label_in_out_pred.unsqueeze(1) & torch.ge(cls_logit, torch.max(cls_logit, dim=-1)[0].unsqueeze(1))
+
+        # 回盲部logit: FloatTensor[B]
+        ileo_logit = logit[:, 1]
+        # 回盲部标签: BoolTensor[B] (被outside和低cls-bbps0-1标签抑制)
+        label_ileo_pred = ~label_in_out_pred & (torch.eq(label_cls_pred, 2) | torch.eq(label_cls_pred, 3)) & torch.ge(ileo_logit, self.hparams.thresh)
+
+        # label_pred: FloatTensor[B, 6]
+        label_pred = torch.cat([label_in_out_pred.unsqueeze(1), label_ileo_pred.unsqueeze(1), label_cls_code_pred], dim=-1).float()
+
+        return logit, label_pred
