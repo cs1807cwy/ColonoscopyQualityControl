@@ -336,7 +336,7 @@ class CleansingClassifier(ResNet50Classifier):
                 origin_img,
                 os.path.join(self.hparams.save_dir,
                              f'{self.index_label[pred_idx]}',
-                             f'frame_{batch_idx * batch[0].size(0) + idx: 0>6}.png'))
+                             'frame_%06d.png' % (batch_idx * batch[0].size(0) + idx)))
         pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
         pred_labels = [self.index_label[k] for k in pred_label_codes]
         return pred_label_codes, pred_labels

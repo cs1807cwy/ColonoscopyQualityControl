@@ -13,27 +13,13 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from .Dataset import *
 
 
-class ColonoscopySiteQualityDataModule(LightningDataModule):
-    """
-    # 获取类别编码的方法调用\n
-    [One-Hot Label Code for Reference]\n
-    cqc_data_module = ColonoscopySiteQualityDataModule(...)\n
-    # 调用此数据模型的如下方法来获取标签和编码的对应关系，标签按字典顺序依次编码\n
-    cqc_data_module.get_label_code_dict()  # 获取label到code的映射\n
-    label to code {'fine': tensor([1., 0., 0.]), 'nonsense': tensor([0., 1., 0.]), 'outside': tensor([0., 0., 1.])}\n
-    cqc_data_module.get_code_label_dict()  # 获取code到label的映射\n
-    [code to label] {tensor([1., 0., 0.]): 'fine', tensor([0., 1., 0.]): 'nonsense', tensor([0., 0., 1.]): 'outside'}
-    """
-
+class ColonoscopyMultiLabelDataModule(LightningDataModule):
     def __init__(
             self,
-            # Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
-            image_index_dir: Union[str, Dict[str, Dict[str, str]]],  # inner keys: index, dir
-            # Dict[数据子集名, 标签]
-            image_label: Dict[str, str] = None,
+            image_index_file_or_root: str,
             sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
-            resize_shape: Tuple[int, int] = (306, 306),
-            center_crop_shape: Tuple[int, int] = (256, 256),
+            resize_shape: Tuple[int, int] = (268, 268),
+            center_crop_shape: Tuple[int, int] = (224, 224),
             brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
             contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
             saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
@@ -43,8 +29,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
     ):
         """
         Args:
-            image_index_dir: Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
-            image_label: Dict[数据子集名, 标签] 每个数据子集有且仅有一个标签
+            image_index_file_or_root: str 索引文件路径或[测试]根路径
             sample_weight: 数据子集采样率。
                 如果为None则不执行采样，简单合并所有数据子集；
                 如果为int型，则每个epoch对全部数据子集按固定数量采样；
@@ -64,8 +49,7 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         """
 
         super().__init__()
-        self.image_index_dir: Union[str, Dict[str, Dict[str, str]]] = image_index_dir
-        self.image_label: Dict[str, str] = image_label
+        self.image_index_file_or_root: str = image_index_file_or_root
         self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
         self.resize_shape: Tuple[int, int] = resize_shape
         self.center_crop_shape: Tuple[int, int] = center_crop_shape
@@ -76,18 +60,17 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         self.num_workers: int = num_workers
         self.dry_run: bool = dry_run
 
-        self.train_dataset: ColonoscopySiteQualityDataset = None
-        self.validation_dataset: ColonoscopySiteQualityDataset = None
-        self.test_dataset: ColonoscopySiteQualityDataset = None
-        self.predict_dataset: ColonoscopyPredictDataset = None
+        self.train_dataset: ColonoscopyMultiLabelDataset = None
+        self.validation_dataset: ColonoscopyMultiLabelDataset = None
+        self.test_dataset: ColonoscopyMultiLabelDataset = None
+        self.predict_dataset: ColonoscopyMultiLabelPredictDataset = None
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == 'fit' or stage is None:
             # list & collect all images
-            self.train_dataset = ColonoscopySiteQualityDataset(
-                self.image_index_dir,
-                self.image_label,
+            self.train_dataset = ColonoscopyMultiLabelDataset(
+                self.image_index_file_or_root,
                 self.sample_weight,
                 False,
                 False,
@@ -98,9 +81,8 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 self.saturation_jitter,
                 self.dry_run
             )
-            self.validation_dataset = ColonoscopySiteQualityDataset(
-                self.image_index_dir,
-                self.image_label,
+            self.validation_dataset = ColonoscopyMultiLabelDataset(
+                self.image_index_file_or_root,
                 self.sample_weight,
                 True,
                 False,
@@ -112,9 +94,8 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 self.dry_run
             )
         elif stage == 'test':
-            self.test_dataset = ColonoscopySiteQualityDataset(
-                self.image_index_dir,
-                self.image_label,
+            self.test_dataset = ColonoscopyMultiLabelDataset(
+                self.image_index_file_or_root,
                 self.sample_weight,
                 True,
                 True,
@@ -126,8 +107,8 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
                 self.dry_run
             )
         elif stage == 'predict':
-            self.predict_dataset = ColonoscopyPredictDataset(
-                self.image_index_dir,
+            self.predict_dataset = ColonoscopyMultiLabelPredictDataset(
+                self.image_index_file_or_root,
                 ['png', 'jpg'],
                 self.resize_shape,
                 self.center_crop_shape
@@ -170,19 +151,21 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
         else:
             return None
 
-    def get_label_code_dict(self, part=None) -> Dict[str, torch.Tensor]:
+    # Dict {outside: 0, ileocecal: 1, bbps0: 2, bbps1: 3, bbps2: 4, bbps3: 5}
+    def get_label_code_dict(self, part=None) -> Dict[torch.Tensor, str]:
         if part == 'train' or part is None:
-            return self.train_dataset.label_code
+            return {v: k for k, v in self.train_dataset.code_label_map.items()}
         elif part == 'validation':
-            return self.validation_dataset.label_code
+            return {v: k for k, v in self.validation_dataset.code_label_map.items()}
         else:
             return {}
 
-    def get_code_label_dict(self, part=None) -> Dict[torch.Tensor, str]:
+    # Dict {0: outside, 1: ileocecal, 2: bbps0, 3: bbps1, 4: bbps2, 5: bbps3}
+    def get_code_label_dict(self, part=None) -> Dict[str, torch.Tensor]:
         if part == 'train' or part is None:
-            return {v: k for k, v in self.train_dataset.label_code.items()}
+            return self.train_dataset.code_label_map
         elif part == 'validation':
-            return {v: k for k, v in self.validation_dataset.label_code.items()}
+            return self.validation_dataset.code_label_map
         else:
             return {}
 

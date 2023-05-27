@@ -18,37 +18,78 @@ from torch.utils.data import Dataset, DataLoader, random_split
 
 class ColonoscopyMultiLabelDataset(Dataset):
     def __init__(self,
-                 # Dict[数据子集名, Dict[{索引文件index|目录dir}, 路径]]
-                 image_index_dir: Dict[str, Dict[str, str]],  # inner keys: index, dir
-                 # Dict[数据子集名, 标签]
-                 image_label: Dict[str, str],
+                 image_index_file: str,
                  sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
                  for_validation: bool = False,
                  for_test: bool = False,  # for_test 有最高优先级
-                 resize_shape: Tuple[int, int] = (306, 306),
-                 center_crop_shape: Tuple[int, int] = (256, 256),
+                 resize_shape: Tuple[int, int] = (268, 268),
+                 center_crop_shape: Tuple[int, int] = (224, 224),
                  brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
                  contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
                  saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
                  dry_run: bool = False
                  ):
+        """
+        json format {
+            code: [outside, ileocecal, bbps0, bbps1, bbps2, bbps3]
+            train: {
+              ileocecal:
+              {
+                ./ileocecal_xxxxxx.png: [0., 1., 0., 0., 0., 1.]
+                ...
+              }
+              nofeature:
+              {
+                ../some_dataset/nofeature_xxxxxx.png: [0., 0., 0., 1., 0., 0.]
+                ...
+              }
+              outside:
+              {
+                C:/some_dataset/outside_xxxxxx.png: [1., 0., 0., 0., 0., 0.]
+                ...
+              }
+            }
+            validation: {
+              ileocecal: {...}
+              nofeature: {...}
+              outside: {...}
+            }
+        }
+        """
+        # 测试模式
+        self.dry_run: bool = dry_run
 
-        self.image_index_dir: Dict[str, Dict[str, str]] = image_index_dir
-        self.image_label: Dict[str, str] = image_label
-        self.label_code: Dict[str, torch.Tensor] = {}
-        label_value_list: List[str] = list(set(self.image_label.values()))
-        label_value_list = sorted(label_value_list)
-        for idx, val in enumerate(label_value_list):
-            onehot_code: torch.Tensor = torch.zeros(len(label_value_list))
-            onehot_code[idx] = 1.
-            self.label_code[val] = onehot_code
-        if dry_run:
-            print(f'label_code: {self.label_code}')
-
+        # 检定数据集用途
         self.for_validation: bool = for_validation
         self.for_test: bool = for_test
         if self.for_test:
             self.for_validation = True
+
+        self.image_index_file: str = image_index_file
+        self.code_label_map: Dict[str, int] = {}
+
+        # 数据子集索引文件内容
+        self.index_content: Dict[str, Dict[str, List[float]]] = {}  # keys: code, train, validation
+        self.index_length: Dict[str, int] = {}  # 数据子集索引文件长度
+
+        with open(self.image_index_file, encoding='utf-8') as index_file:
+            json_content: Dict[str, Dict] = json.load(index_file)
+            self.code_label_map = {i: e for i, e in enumerate(json_content['code'])}
+            if self.dry_run:
+                print(f'label_code: {self.code_label_map}')
+
+            self.index_content = json_content['validation' if self.for_validation else 'train']
+            for key, val in self.index_content.items():
+                self.index_content[key] = [(k, v) for k, v in val.items()]
+
+        for key in self.index_content.keys():
+            if not self.for_validation:
+                random.shuffle(self.index_content[key])  # 混洗每一个用于训练的数据子集
+            self.index_length[key] = len(self.index_content[key])
+
+        # 包含所有数据子集名称的列表
+        self.subset_keys: List[str] = list(self.index_content.keys())
+
         self.transform_train = transforms.Compose([
             transforms.ToTensor(),
             # 缩放和截去黑边
@@ -67,27 +108,6 @@ class ColonoscopyMultiLabelDataset(Dataset):
             transforms.Resize(resize_shape, antialias=True),
             transforms.CenterCrop(center_crop_shape)
         ])
-
-        # 测试模式
-        self.dry_run: bool = dry_run
-
-        # 包含所有数据子集名称的列表
-        self.subset_keys: List[str] = list(self.image_index_dir.keys())
-
-        # 数据子集索引文件内容
-        self.index_content: Dict[str, List[str]] = {}  # inner keys: fold, train, validation
-        self.index_length: Dict[str, int] = {}  # 数据子集索引文件长度
-        for k in self.subset_keys:
-            index_path = self.image_index_dir[k]['index']
-            dir_path = self.image_index_dir[k]['dir']
-            with open(index_path, encoding='utf-8') as index_file:
-                index_file_content: Dict[str, Dict] = json.load(index_file)
-                if self.for_validation:
-                    self.index_content[k] = [osp.join(dir_path, name) for name in index_file_content['validation']]
-                else:
-                    self.index_content[k] = [osp.join(dir_path, name) for name in index_file_content['train']]
-                    random.shuffle(self.index_content[k])  # 混洗每一个用于训练的数据子集
-                self.index_length[k] = len(self.index_content[k])
 
         if dry_run:
             if self.for_validation:
@@ -169,24 +189,23 @@ class ColonoscopyMultiLabelDataset(Dataset):
             self.count += 1
 
         subset_key, inner_index = self.index_map[idx]
-        image_path: str = self.index_content[subset_key][inner_index]
+        image_path, label_code = self.index_content[subset_key][inner_index]
+        label_code_ts: torch.Tensor = torch.from_numpy(np.array(label_code, dtype=np.float))
+
+        # label_code: 标签编码
+        # label: 标签
+        # subset_key: 采样子集
+        # image_path: 图像文件路径
         if self.dry_run:
-            item = 0
+            label: List[str] = []
+            for i in range(len(label_code)):
+                if label_code[i] == 1.:
+                    label.append(self.code_label_map[i])
+            return label_code_ts, label, subset_key, image_path
         else:
             image: Image.Image = Image.open(image_path).convert('RGB')
             item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(image)
-        label: str = self.image_label[subset_key]
-        label_code: torch.Tensor = self.label_code[label]
-        basename: str = osp.basename(image_path)
-
-        # 图像Tensor，标签编码，标签，原始标签，图像文件名
-        if self.dry_run:
-            return item, label_code, label, subset_key, basename
-        elif self.for_test:
-            origin_item = transforms.ToTensor()(image)
-            return item, label_code, origin_item
-        else:  # validation & train
-            return item, label_code
+            return item, label_code_ts
 
     def __len__(self) -> int:
         return self.sample_per_epoch
@@ -236,15 +255,15 @@ class ColonoscopyMultiLabelPredictDataset(Dataset):
                  # 数据目录
                  image_root_dir: str,
                  ext: List[str] = ('png', 'jpg'),
-                 resize_shape: Tuple[int, int] = (306, 306),
-                 center_crop_shape: Tuple[int, int] = (256, 256)
+                 resize_shape: Tuple[int, int] = (268, 268),
+                 center_crop_shape: Tuple[int, int] = (224, 224)
                  ):
         """
         Args:
-            image_dir: str 数据目录
+            image_root_dir: str 数据目录
+            ext: List[str] 有效的扩展名
             resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
             center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
-            dry_run: 测试模式
         """
 
         self.image_root_dir: str = osp.abspath(image_root_dir)
@@ -266,10 +285,9 @@ class ColonoscopyMultiLabelPredictDataset(Dataset):
         image_path: str = self.items[idx]
         image: Image.Image = Image.open(image_path).convert('RGB')
         item: torch.Tensor = self.transform_predict(image)
-        origin_item = transforms.ToTensor()(image)
 
-        # 图像Tensor，原始图像Tensor
-        return item, origin_item
+        # 图像Tensor
+        return item
 
     def __len__(self) -> int:
         return len(self.items)

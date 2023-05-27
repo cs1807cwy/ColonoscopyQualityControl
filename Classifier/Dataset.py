@@ -191,23 +191,24 @@ class ColonoscopySiteQualityDataset(Dataset):
 
         subset_key, inner_index = self.index_map[idx]
         image_path: str = self.index_content[subset_key][inner_index]
-        if self.dry_run:
-            item = 0
-        else:
-            image: Image.Image = Image.open(image_path).convert('RGB')
-            item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(image)
         label: str = self.image_label[subset_key]
         label_code: torch.Tensor = self.label_code[label]
         basename: str = osp.basename(image_path)
 
-        # 图像Tensor，标签编码，标签，原始标签，图像文件名
+        # label_code: 标签编码
+        # label: 标签
+        # subset_key: 采样子集
+        # image_path: 图像文件路径
         if self.dry_run:
-            return item, label_code, label, subset_key, basename
-        elif self.for_test:
-            origin_item = transforms.ToTensor()(image)
-            return item, label_code, origin_item
-        else:  # validation & train
-            return item, label_code
+            return label_code, label, subset_key, basename
+        else:
+            image: Image.Image = Image.open(image_path).convert('RGB')
+            item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(image)
+            if self.for_test:
+                origin_item = transforms.ToTensor()(image)
+                return item, label_code, origin_item
+            else:  # validation & train
+                return item, label_code
 
     def __len__(self) -> int:
         return self.sample_per_epoch

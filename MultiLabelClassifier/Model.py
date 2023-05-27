@@ -14,21 +14,19 @@ from .Network import *
 from lightning.pytorch import LightningModule
 
 
-class MultilabelClassifier(LightningModule):
+class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
     def __init__(
             self,
             input_shape: Tuple[int, int] = (224, 224),  # must be 224*224 as we use pretrained ViT_Patch16_224
             num_heads: int = 8,  # heads number in [1, 2, 4, 6, 8]
-            attention_lambda: float = 0.5,
+            attention_lambda: float = 0.3,
             num_classes: int = 6,
             thresh: float = 0.5,
             batch_size: int = 16,
-            lr: float = 0.01,
+            lr: float = 0.0001,
             momentum: float = 0.9,
             weight_decay: float = 0.0001,
             step_size: int = 5,
-            epochs: int = 1000,
-            save_dir: str = 'test_viz',
             **kwargs,
     ):
         super().__init__()
@@ -162,8 +160,10 @@ class MultilabelClassifier(LightningModule):
 
         # 回盲部logit: FloatTensor[B]
         ileo_logit = logit[:, 1]
-        # 回盲部标签: BoolTensor[B] (被outside和低cls-bbps0-1标签抑制)
-        label_ileo_pred = ~label_in_out_pred & (torch.eq(label_cls_pred, 2) | torch.eq(label_cls_pred, 3)) & torch.ge(ileo_logit, self.hparams.thresh)
+        # Deprecated: 回盲部标签: BoolTensor[B] (被outside和低cls-bbps0-1标签抑制)
+        # label_ileo_pred = ~label_in_out_pred & (torch.eq(label_cls_pred, 2) | torch.eq(label_cls_pred, 3)) & torch.ge(ileo_logit, self.hparams.thresh)
+        # 回盲部标签: BoolTensor[B] (被outside标签抑制)
+        label_ileo_pred = ~label_in_out_pred & torch.ge(ileo_logit, self.hparams.thresh)
         # 回盲部gt: BoolTensor[B]
         label_ileo_gt = torch.ge(label_gt[:, 1], self.hparams.thresh)
         self.confuse_matrix[f'label_{self.index_label[1]}_TP'] += (label_ileo_pred & label_ileo_gt).float().sum()
