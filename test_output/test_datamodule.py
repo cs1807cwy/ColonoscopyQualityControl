@@ -390,11 +390,11 @@ def TestColonoscopySiteQualityDataModule_IleocecalDetect():
 
 def TestColonoscopyMultiLabelSiteQualityDataModule():
     print('TestColonoscopyMultiLabelSiteQualityDataModule')
-    image_index_file: str = '../Datasets/UIHIMGMultiLabel/index/fold0.json'
+    image_index_file: str = '../Datasets/UIHMuL/folds/fold0.json'
     sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = {
-        'ileocecal': 4000,
-        'nofeature': 4000,
-        'outside': 4000,
+        'ileocecal': 1000,
+        'nofeature': 1000,
+        'outside': 1000,
     }
 
     resize_shape: Tuple[int, int] = (268, 268)
@@ -433,33 +433,33 @@ def TestColonoscopyMultiLabelSiteQualityDataModule():
     train_dataloader = cqc_data_module.train_dataloader()
 
     from tqdm import tqdm
-    epochs: int = 21
+    epochs: int = 10
     samples: int = epochs * cqc_data_module.size('train')
     with tqdm(total=samples) as pbar:
         pbar.set_description('Processing')
         for epoch in range(epochs):
             for batch_idx, batch in enumerate(train_dataloader):
                 # 依次为
-                # label_code_ts: 标签编码Tensor
-                # label: 标签List[str]
-                # subset_key: 3个数据子集{outside|ileocecal|nofeature}
-                # basename: 图像文件名
+                # label_code: 标签编码
+                # label: 标签
+                # subset_key: 采样子集
+                # image_path: 图像文件路径
                 label_code_ts, label, subset_key, image_path = batch
 
-                for lc, sk, pt, pt in zip(label_code_ts, label, subset_key, image_path):
-                    if item_counter.get(pt) is None:
-                        item_counter[pt] = {
+                for sk, pt in zip(subset_key, image_path):
+                    if item_counter.get(sk) is None:
+                        item_counter[sk] = {
                             'sample_count': 1,
                             'item_count': 0,
                             'content': {pt: 1}
                         }
-                    elif item_counter[pt]['content'].get(pt) is None:
-                        item_counter[pt]['sample_count'] += 1
-                        item_counter[pt]['content'][pt] = 1
+                    elif item_counter[sk]['content'].get(pt) is None:
+                        item_counter[sk]['sample_count'] += 1
+                        item_counter[sk]['content'][pt] = 1
                     else:
-                        item_counter[pt]['sample_count'] += 1
-                        item_counter[pt]['content'][pt] += 1
-                pbar.update(len(label))
+                        item_counter[sk]['sample_count'] += 1
+                        item_counter[sk]['content'][pt] += 1
+                pbar.update(len(subset_key))
 
     # 计算不重复项数
     for sk in item_counter:
@@ -477,7 +477,7 @@ def TestColonoscopyMultiLabelSiteQualityDataModule():
         json.dump(item_counter, count_file, indent=2)
 
     import matplotlib.pyplot as plt
-    plt.rc('font', family='SimHei')  # 设置字体为黑体
+    # plt.rc('font', family='SimHei')  # 设置字体为黑体
     plt.rc('axes', unicode_minus=False)  # 解决坐标轴负号显示问题
     parameters = {'axes.labelsize': 30,
                   'axes.titlesize': 30,
@@ -538,6 +538,6 @@ def TestColonoscopyMultiLabelSiteQualityDataModule():
 
 
 if __name__ == '__main__':
-    TestColonoscopySiteQualityDataModule_SiteQuality()
-    TestColonoscopySiteQualityDataModule_IleocecalDetect()
-    # TestColonoscopyMultiLabelSiteQualityDataModule()
+    # TestColonoscopySiteQualityDataModule_SiteQuality()
+    # TestColonoscopySiteQualityDataModule_IleocecalDetect()
+    TestColonoscopyMultiLabelSiteQualityDataModule()

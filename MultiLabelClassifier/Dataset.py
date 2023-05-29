@@ -190,7 +190,7 @@ class ColonoscopyMultiLabelDataset(Dataset):
 
         subset_key, inner_index = self.index_map[idx]
         image_path, label_code = self.index_content[subset_key][inner_index]
-        label_code_ts: torch.Tensor = torch.from_numpy(np.array(label_code, dtype=np.float))
+        label_code_ts: torch.Tensor = torch.from_numpy(np.array(label_code, dtype=np.float32))
 
         # label_code: 标签编码
         # label: 标签
@@ -201,6 +201,8 @@ class ColonoscopyMultiLabelDataset(Dataset):
             for i in range(len(label_code)):
                 if label_code[i] == 1.:
                     label.append(self.code_label_map[i])
+                else:
+                    label.append('nil')
             return label_code_ts, label, subset_key, image_path
         else:
             image: Image.Image = Image.open(image_path).convert('RGB')
