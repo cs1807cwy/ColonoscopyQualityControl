@@ -55,7 +55,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
         feature = feature[:, 1:]
         b, hw, c = feature.shape
         h = w = int(math.sqrt(hw))
-        feature = feature.transpose(1, 2)
+        feature = feature.transpose(1, 2).contiguous()
         feature = feature.reshape(b, c, h, w)
         logit = self.classify_head(feature)
 

@@ -32,9 +32,9 @@ trainer:
         save_top_k: 3
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
-        monitor: "val_acc" # note: save .ckpt with the highest val_acc
+        monitor: "val_mean_acc" # note: save .ckpt with the highest val_acc
         mode: max
-        filename: "CleansingClassifier_best_val_acc_{epoch:03d}_{val_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
+        filename: "CleansingClassifier_best_val_acc_{epoch:03d}_{val_mean_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
   fast_dev_run: false
   max_epochs: 1000
   min_epochs: null
@@ -71,11 +71,11 @@ ckpt_path: null # note: reload from checkpoint
 data:
   class_path: MultiLabelClassifier.ColonoscopyMultiLabelDataModule
   init_args:
-    image_index_file_or_root: "/mnt/data4/cwy/Datasets/UIHIMGMultiLabel/index/fold0.json"
+    image_index_file_or_root: "/mnt/data4/cwy/Datasets/UIHMuL/folds/fold0.json"
     sample_weight:
-      ileocecal: 4000
-      nofeature: 4000
-      outside: 4000
+      ileocecal: 4500
+      nofeature: 4500
+      outside: 4500
     resize_shape:
       - 268
       - 268
@@ -85,7 +85,7 @@ data:
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
-    batch_size: 32
+    batch_size: 16
     num_workers: 8
     dry_run: false
 model:
@@ -98,7 +98,7 @@ model:
     attention_lambda: 0.3
     num_classes: 6
     thresh: 0.5
-    batch_size: 32
+    batch_size: 16
     lr: 0.0001
     momentum: 0.9
     weight_decay: 0.0001
