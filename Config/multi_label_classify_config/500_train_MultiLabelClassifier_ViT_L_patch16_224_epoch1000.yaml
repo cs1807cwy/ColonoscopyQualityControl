@@ -87,8 +87,8 @@ data:
       nofeature: 1000
       outside: 1000
     resize_shape:
-      - 268
-      - 268
+      - 224
+      - 224
     center_crop_shape:
       - 224
       - 224
