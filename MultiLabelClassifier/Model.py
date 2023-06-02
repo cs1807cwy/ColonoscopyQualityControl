@@ -104,7 +104,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
         label_pred_tf = torch.ge(logit, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
         mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
-        self.log('val_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
+        self.log('val_thresh_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
 
         # 逐标签混淆矩阵
         for k, v in self.index_label.items():
@@ -118,18 +118,16 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
         # bbps0-1/bbps2-3二分清洁度混淆矩阵
         # 清洁度logit: FloatTensor[B, 4]
         cls_logit = logit[:, 2:]
-        # 清洁度label: IntTensor[B] (取预测值最大的，但会被outside标签抑制)
+        # 清洁度label: IntTensor[B]
         label_cls_pred = torch.argmax(cls_logit, dim=-1)
         # 清洁度gt: IntTensor[B]
         label_cls_gt = torch.argmax(label_gt[:, 2:], dim=-1)
-        for i in range(2, 6):  # i: predict
-            for j in range(2, 6):  # j: gt
-                self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i]}_gt_{self.index_label[j]}'] += \
+        for i in range(0, 4):  # i: predict
+            for j in range(0, 4):  # j: gt
+                self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i + 2]}_gt_{self.index_label[j + 2]}'] += \
                     (torch.eq(label_cls_pred, i) & torch.eq(label_cls_gt, j)).float().sum()
 
     def on_validation_epoch_end(self):
-        self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
-
         metrics = {}
         for k, v in self.index_label.items():
             TP = self.confuse_matrix[f'label_{v}_TP']
@@ -142,9 +140,9 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
             metrics[f'label_{v}_acc'] = float(TP + TN) / float(TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
 
         # bbps0-1/bbps2-3二分清洁度准确率
-        for i in range(2, 6):  # i: predict
-            for j in range(2, 6):  # j: gt
-                cnt = self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i]}_gt_{self.index_label[j]}']
+        for i in range(0, 4):  # i: predict
+            for j in range(0, 4):  # j: gt
+                cnt = self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i + 2]}_gt_{self.index_label[j + 2]}']
                 if i in {0, 1} and j in {0, 1}:
                     self.confuse_matrix['label_cleansing_low_TP'] += cnt
                 elif i in {0, 1} and j in {2, 3}:
@@ -153,12 +151,13 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
                     self.confuse_matrix['label_cleansing_low_FN'] += cnt
                 elif i in {2, 3} and j in {2, 3}:
                     self.confuse_matrix['label_cleansing_low_TN'] += cnt
-        TP = self.confuse_matrix['label_cleansing_low_TP']
-        FP = self.confuse_matrix['label_cleansing_low_FP']
-        FN = self.confuse_matrix['label_cleansing_low_FN']
-        TN = self.confuse_matrix['label_cleansing_low_TN']
-        metrics['label_cleansing_biclassify_acc'] = float(TP + TN) / float(TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
+        TP = self.confuse_matrix['label_cleansing_low_TP'] = float(self.confuse_matrix['label_cleansing_low_TP'])
+        FP = self.confuse_matrix['label_cleansing_low_FP'] = float(self.confuse_matrix['label_cleansing_low_FP'])
+        FN = self.confuse_matrix['label_cleansing_low_FN'] = float(self.confuse_matrix['label_cleansing_low_FN'])
+        TN = self.confuse_matrix['label_cleansing_low_TN'] = float(self.confuse_matrix['label_cleansing_low_TN'])
+        metrics['label_cleansing_biclassify_acc'] = (TP + TN) / (TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
 
+        self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
         self.log_dict(metrics, logger=True, sync_dist=True)
 
     def on_test_epoch_start(self):
@@ -186,9 +185,9 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
         label_cls_pred = torch.argmax(cls_logit, dim=-1)
         # 清洁度gt: IntTensor[B]
         label_cls_gt = torch.argmax(label_gt[:, 2:], dim=-1)
-        for i in range(2, 6):  # i: predict
-            for j in range(2, 6):  # j: gt
-                self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i]}_gt_{self.index_label[j]}'] += \
+        for i in range(0, 4):  # i: predict
+            for j in range(0, 4):  # j: gt
+                self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i + 2]}_gt_{self.index_label[j + 2]}'] += \
                     (~label_in_out_pred & torch.eq(label_cls_pred, i) & torch.eq(label_cls_gt, j)).float().sum()  # ~label_in_out_pred用于清洁度标签抑制
 
         # 回盲部logit: FloatTensor[B]
@@ -236,9 +235,9 @@ class MultiLabelClassifier_ViT_L_Patch16_224(LightningModule):
         metrics[f'label_cleansing_acc'] = float(correct) / float(total) if total > 0 else 0.
 
         # bbps0-1/bbps2-3二分清洁度准确率
-        for i in range(2, 6):  # i: predict
-            for j in range(2, 6):  # j: gt
-                cnt = self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i]}_gt_{self.index_label[j]}']
+        for i in range(0, 4):  # i: predict
+            for j in range(0, 4):  # j: gt
+                cnt = self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i + 2]}_gt_{self.index_label[j + 2]}']
                 if i in {0, 1} and j in {0, 1}:
                     self.confuse_matrix['label_cleansing_low_TP'] += cnt
                 elif i in {0, 1} and j in {2, 3}:
