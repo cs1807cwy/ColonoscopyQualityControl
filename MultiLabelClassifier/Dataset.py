@@ -18,6 +18,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 
 class ColonoscopyMultiLabelDataset(Dataset):
     def __init__(self,
+                 # index file is under dataset root
                  image_index_file: str,
                  sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
                  for_validation: bool = False,
@@ -65,7 +66,8 @@ class ColonoscopyMultiLabelDataset(Dataset):
         if self.for_test:
             self.for_validation = True
 
-        self.image_index_file: str = image_index_file
+        self.image_index_file: str = osp.abspath(image_index_file)
+        self.image_root: str = osp.dirname(self.image_index_file)
         self.code_label_map: Dict[str, int] = {}
 
         # 数据子集索引文件内容
@@ -190,6 +192,8 @@ class ColonoscopyMultiLabelDataset(Dataset):
 
         subset_key, inner_index = self.index_map[idx]
         image_path, label_code = self.index_content[subset_key][inner_index]
+        if not osp.isabs(image_path):
+            image_path = osp.abspath(osp.join(self.image_root, image_path))
         label_code_ts: torch.Tensor = torch.from_numpy(np.array(label_code, dtype=np.float32))
 
         # label_code: 标签编码
