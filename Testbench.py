@@ -3,18 +3,22 @@ import numpy as np
 import os
 import os.path as osp
 
-
 if __name__ == '__main__':
-    path = '../aaa/bbb/ccc.txt'
-    jpath = osp.join('/mnt/data4/cwy/Test', path)
-    print(jpath)
-    print(osp.abspath(jpath))
-    print(osp.isabs(jpath))
-    print(osp.isabs('data/lll.txt'))
-    os.makedirs(osp.dirname(jpath), exist_ok=True)
-    with open(jpath, 'w') as fp:
-        fp.write('Hello!')
+    a = torch.zeros(1)
+    b = torch.ones(1)
+    print(a != b)
+    if a != b:
+        print('ne')
 
+    # path = '../aaa/bbb/ccc.txt'
+    # jpath = osp.join('/mnt/data4/cwy/Test', path)
+    # print(jpath)
+    # print(osp.abspath(jpath))
+    # print(osp.isabs(jpath))
+    # print(osp.isabs('data/lll.txt'))
+    # os.makedirs(osp.dirname(jpath), exist_ok=True)
+    # with open(jpath, 'w') as fp:
+    #     fp.write('Hello!')
 
     # a = torch.from_numpy(np.array([True, False, True, False]))
     # print('# a:')
