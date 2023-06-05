@@ -105,8 +105,8 @@ data:
     sample_weight:
       ileocecal: 4800
       nofeature: 4800
-      nonsense: 4800
-      outside: 4800
+      nonsense: 800
+      outside: 400
     resize_shape:
       - 224
       - 224
