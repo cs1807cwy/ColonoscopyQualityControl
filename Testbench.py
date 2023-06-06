@@ -4,6 +4,9 @@ import os
 import os.path as osp
 
 if __name__ == '__main__':
+    a: 0 = 1
+    print(a)
+
     a = torch.zeros(1)
     b = torch.ones(1)
     print(a != b)
