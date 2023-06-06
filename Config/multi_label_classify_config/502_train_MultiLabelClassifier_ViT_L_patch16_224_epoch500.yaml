@@ -1,22 +1,22 @@
 # lightning.pytorch==2.0.1.post0
-# 502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch1000
+# 502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 9 ]
+  devices: [ 1, 2, 4, 6 ]
   num_nodes: 1
   precision: 32-true
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch1000"          # note: name of the current experiment
+        name: "502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500"          # note: name of the current experiment
         version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch1000"          # note: keep the same experiment name
+        name: "502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500"          # note: keep the same experiment name
         version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -29,7 +29,7 @@ trainer:
         mode: max
         every_n_epochs: 1 # note: save .ckpt every n epochs
         filename: "CleansingClassifier_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
-        save_top_k: 2
+        save_top_k: 1
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         monitor: "val_thresh_mean_acc" # note: save .ckpt with the highest val_thresh_mean_acc
@@ -66,7 +66,7 @@ trainer:
         mode: max
         filename: "WMuL_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc:.4f}"
   fast_dev_run: false
-  max_epochs: 1000
+  max_epochs: 500
   min_epochs: null
   max_steps: -1
   min_steps: null
@@ -96,17 +96,18 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch1000"
+  default_root_dir: "Experiment/502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500"
 ckpt_path: null # note: reload from checkpoint
 data:
   class_path: MultiLabelClassifier.ColonoscopyMultiLabelDataModule
   init_args:
-    image_index_file_or_root: "/mnt/data4/cwy/Datasets/UIHWMuL/folds/fold0.json"
+    data_index_file: "/mnt/data4/cwy/Datasets/UIHWMuL/folds/fold0.json"
+    data_root: "/mnt/data4/cwy/Datasets/UIHWMuL"
     sample_weight:
       ileocecal: 4800
       nofeature: 4800
-      nonsense: 800
-      outside: 400
+      nonsense: 4800
+      outside: 4800
     resize_shape:
       - 224
       - 224
@@ -133,3 +134,4 @@ model:
     lr: 0.0001
     momentum: 0.9
     weight_decay: 0.0001
+    epochs: 500
