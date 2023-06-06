@@ -16,7 +16,8 @@ from .Dataset import *
 class ColonoscopyMultiLabelDataModule(LightningDataModule):
     def __init__(
             self,
-            image_index_file_or_root: str,
+            data_index_file: str,
+            data_root: str,
             sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
             resize_shape: Tuple[int, int] = (268, 268),
             center_crop_shape: Tuple[int, int] = (224, 224),
@@ -29,7 +30,8 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
     ):
         """
         Args:
-            image_index_file_or_root: str 索引文件路径或[测试]根路径
+            data_index_file: str 索引文件路径
+            data_root: str 数据集根路径
             sample_weight: 数据子集采样率。
                 如果为None则不执行采样，简单合并所有数据子集；
                 如果为int型，则每个epoch对全部数据子集按固定数量采样；
@@ -49,7 +51,8 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
         """
 
         super().__init__()
-        self.image_index_file_or_root: str = image_index_file_or_root
+        self.data_index_file: str = data_index_file
+        self.data_root: str = data_root
         self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
         self.resize_shape: Tuple[int, int] = resize_shape
         self.center_crop_shape: Tuple[int, int] = center_crop_shape
@@ -70,7 +73,8 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
         if stage == 'fit' or stage is None:
             # list & collect all images
             self.train_dataset = ColonoscopyMultiLabelDataset(
-                self.image_index_file_or_root,
+                self.data_index_file,
+                self.data_root,
                 self.sample_weight,
                 False,
                 False,
@@ -82,7 +86,8 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
                 self.dry_run
             )
             self.validation_dataset = ColonoscopyMultiLabelDataset(
-                self.image_index_file_or_root,
+                self.data_index_file,
+                self.data_root,
                 self.sample_weight,
                 True,
                 False,
@@ -95,7 +100,8 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
             )
         elif stage == 'test':
             self.test_dataset = ColonoscopyMultiLabelDataset(
-                self.image_index_file_or_root,
+                self.data_index_file,
+                self.data_root,
                 self.sample_weight,
                 True,
                 True,
@@ -108,7 +114,7 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
             )
         elif stage == 'predict':
             self.predict_dataset = ColonoscopyMultiLabelPredictDataset(
-                self.image_index_file_or_root,
+                self.data_root,
                 ['png', 'jpg'],
                 self.resize_shape,
                 self.center_crop_shape

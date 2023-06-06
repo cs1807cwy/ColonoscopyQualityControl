@@ -19,7 +19,8 @@ from torch.utils.data import Dataset, DataLoader, random_split
 class ColonoscopyMultiLabelDataset(Dataset):
     def __init__(self,
                  # index file is under dataset root
-                 image_index_file: str,
+                 data_index_file: str,
+                 data_root: str = None,
                  sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
                  for_validation: bool = False,
                  for_test: bool = False,  # for_test 有最高优先级
@@ -28,7 +29,8 @@ class ColonoscopyMultiLabelDataset(Dataset):
                  brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
                  contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
                  saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
-                 dry_run: bool = False
+                 dry_run: bool = False,
+                 **kwargs,
                  ):
         """
         json format {
@@ -66,15 +68,16 @@ class ColonoscopyMultiLabelDataset(Dataset):
         if self.for_test:
             self.for_validation = True
 
-        self.image_index_file: str = osp.abspath(image_index_file)
-        self.image_root: str = osp.dirname(self.image_index_file)
+        self.data_index_file: str = osp.abspath(data_index_file)
+        self.data_root: str = osp.dirname(self.data_index_file) if data_root is None else data_root
+        
         self.code_label_map: Dict[str, int] = {}
 
         # 数据子集索引文件内容
         self.index_content: Dict[str, Dict[str, List[float]]] = {}  # keys: code, train, validation
         self.index_length: Dict[str, int] = {}  # 数据子集索引文件长度
 
-        with open(self.image_index_file, encoding='utf-8') as index_file:
+        with open(self.data_index_file, encoding='utf-8') as index_file:
             json_content: Dict[str, Dict] = json.load(index_file)
             self.code_label_map = {i: e for i, e in enumerate(json_content['code'])}
             if self.dry_run:
@@ -193,7 +196,7 @@ class ColonoscopyMultiLabelDataset(Dataset):
         subset_key, inner_index = self.index_map[idx]
         image_path, label_code = self.index_content[subset_key][inner_index]
         if not osp.isabs(image_path):
-            image_path = osp.abspath(osp.join(self.image_root, image_path))
+            image_path = osp.abspath(osp.join(self.data_root, image_path))
         label_code_ts: torch.Tensor = torch.from_numpy(np.array(label_code, dtype=np.float32))
 
         # label_code: 标签编码
@@ -259,25 +262,25 @@ class ColonoscopyMultiLabelDataset(Dataset):
 class ColonoscopyMultiLabelPredictDataset(Dataset):
     def __init__(self,
                  # 数据目录
-                 image_root_dir: str,
+                 data_root_dir: str,
                  ext: List[str] = ('png', 'jpg'),
                  resize_shape: Tuple[int, int] = (268, 268),
                  center_crop_shape: Tuple[int, int] = (224, 224)
                  ):
         """
         Args:
-            image_root_dir: str 数据目录
+            data_root_dir: str 数据目录
             ext: List[str] 有效的扩展名
             resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
             center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
         """
 
-        self.image_root_dir: str = osp.abspath(image_root_dir)
+        self.data_root_dir: str = osp.abspath(data_root_dir)
         self.items: List[str] = []
 
         # 筛选全部具有ext指定包含后缀名的文件
         for e in ext:
-            self.items += glob.glob(osp.join(self.image_root_dir, '**', f'*.{e}'), recursive=True)
+            self.items += glob.glob(osp.join(self.data_root_dir, '**', f'*.{e}'), recursive=True)
         self.items = sorted(self.items)
 
         self.transform_predict = transforms.Compose([
