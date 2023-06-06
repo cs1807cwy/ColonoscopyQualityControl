@@ -81,7 +81,8 @@ ckpt_path: null # note: reload from checkpoint
 data:
   class_path: MultiLabelClassifier.ColonoscopyMultiLabelDataModule
   init_args:
-    image_index_file_or_root: "/mnt/data4/cwy/Datasets/UIHMuL/folds/fold0.json"
+    data_index_file: "/mnt/data4/cwy/Datasets/UIHMuL/folds/fold0.json"
+    data_root: "/mnt/data4/cwy/Datasets/UIHMuL"
     sample_weight:
       ileocecal: 4800
       nofeature: 4800
