@@ -9,19 +9,19 @@ from MultiLabelClassifier import *
 # hparams for Trainer
 accelerator = 'gpu'
 strategy = 'ddp'
-devices = [4, 5, 6, 7]
+devices = [2, 3]
 max_epochs = 500
 log_every_n_steps = 10
-default_root_dir = 'Experiment/502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500'
+default_root_dir = 'Experiment/502_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch500'
 logger = [
     TensorBoardLogger(
         save_dir='Experiment',
-        name='502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500',
+        name='502_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch500',
         version='tensorboard_train_val'
     ),
     CSVLogger(
         save_dir='Experiment',
-        name='502_train_MultiLabelClassifier_ViT_L_patch16_224_epoch500',
+        name='502_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch500',
         version='csv_train_val'
     )
 ]
@@ -87,7 +87,7 @@ center_crop_shape = (224, 224)
 brightness_jitter = 0.8
 contrast_jitter = 0.8
 saturation_jitter = 0.8
-batch_size = 16
+batch_size = 32
 num_workers = 8
 dry_run = False
 
