@@ -133,6 +133,7 @@ model:
     thresh: 0.5
     batch_size: 16
     lr: 0.0001
+    epochs: 1000
     momentum: 0.9
     weight_decay: 0.0001
-    epochs: 1000
+    cls_weight: 1.

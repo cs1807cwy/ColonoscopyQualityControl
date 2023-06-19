@@ -25,12 +25,12 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             thresh: float = 0.5,
             batch_size: int = 16,
             lr: float = 0.0001,
+            epochs: int = 1000,
             b1: float = 0.9,
             b2: float = 0.999,
-            epochs: int = 1000,
             momentum: float = 0.9,
             weight_decay: float = 0.0001,
-            step_size: int = 5,
+            cls_weight: float = 1.,
             save_dir: str = 'test_viz',
             **kwargs,
     ):
@@ -70,8 +70,9 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
     def training_step(self, batch, batch_idx: int):
         image, label_gt = batch
         logit = self(image)
-        loss = F.binary_cross_entropy_with_logits(logit, label_gt, reduction='mean')
+        # loss = F.binary_cross_entropy_with_logits(logit, label_gt, reduction='mean')
         # loss = sigmoid_focal_loss_star_jit(logit, label_gt, reduction='mean')
+        loss = self._calculate_loss(logit, label_gt)
         self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
 
         # 计算总体train_mean_acc
@@ -81,6 +82,11 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.log(f'train_thresh_mean_acc', mean_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         return loss
+
+    def _calculate_loss(self, logit, gt):
+        loss_loc = F.binary_cross_entropy_with_logits(logit[:, 0:3], gt[:, 0:3], reduction='mean')
+        loss_cls = F.cross_entropy(logit[:, 3:], gt[:, 3:], reduction='mean')
+        return loss_loc + self.hparams.cls_weight * loss_cls
 
     def configure_optimizers(self):
         # return self.configure_adam_cosine()
@@ -133,26 +139,57 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
         self.log('val_thresh_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
 
-        # 逐标签混淆矩阵
-        for k, v in self.index_label.items():
-            label_pred_k = label_pred_tf[:, k]
-            label_gt_k = label_gt_tf[:, k]
-            self.confuse_matrix[f'label_{v}_TP'] += (label_pred_k & label_gt_k).float().sum()
-            self.confuse_matrix[f'label_{v}_FP'] += (label_pred_k & ~label_gt_k).float().sum()
-            self.confuse_matrix[f'label_{v}_FN'] += (~label_pred_k & label_gt_k).float().sum()
-            self.confuse_matrix[f'label_{v}_TN'] += (~label_pred_k & ~label_gt_k).float().sum()
+        # 体内外logit: FloatTensor[B]
+        in_out_logit = logit[:, 0]
+        # 体内外标签: BoolTensor[B]
+        # outside时为True
+        label_in_out_pred = torch.ge(in_out_logit, self.hparams.thresh)
+        # 体内外gt: BoolTensor[B]
+        label_in_out_gt = torch.ge(label_gt[:, 0], self.hparams.thresh)
+        self.confuse_matrix[f'label_{self.index_label[0]}_TP'] += (label_in_out_pred & label_in_out_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[0]}_FP'] += (label_in_out_pred & ~label_in_out_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[0]}_FN'] += (~label_in_out_pred & label_in_out_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[0]}_TN'] += (~label_in_out_pred & ~label_in_out_gt).float().sum()
 
-        # bbps四分清洁度混淆矩阵
+        # 帧质量logit: FloatTensor[B]
+        nonsense_logit = logit[:, 1]
+        # 坏帧标签: BoolTensor[B]
+        # nonsense时为True
+        label_nonsense_pred = torch.ge(nonsense_logit, self.hparams.thresh)
+        # 帧质量gt: BoolTensor[B]
+        # pred或gt是outside时不计入总数
+        label_nonsense_gt = torch.ge(label_gt[:, 1], self.hparams.thresh)
+        flag = ~label_in_out_pred & ~label_in_out_gt
+        self.confuse_matrix[f'label_{self.index_label[1]}_TP'] += (flag & label_nonsense_pred & label_nonsense_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[1]}_FP'] += (flag & label_nonsense_pred & ~label_nonsense_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[1]}_FN'] += (flag & ~label_nonsense_pred & label_nonsense_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[1]}_TN'] += (flag & ~label_nonsense_pred & ~label_nonsense_gt).float().sum()
+
+        # 回盲部logit: FloatTensor[B]
+        ileo_logit = logit[:, 2]
+        # 回盲部标签: BoolTensor[B]
+        label_ileo_pred = torch.ge(ileo_logit, self.hparams.thresh)
+        # 回盲部gt: BoolTensor[B]
+        label_ileo_gt = torch.ge(label_gt[:, 2], self.hparams.thresh)
+        flag = ~label_in_out_pred & ~label_in_out_gt & ~label_nonsense_pred & ~label_nonsense_gt
+        self.confuse_matrix[f'label_{self.index_label[2]}_TP'] += (flag & label_ileo_pred & label_ileo_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[2]}_FP'] += (flag & label_ileo_pred & ~label_ileo_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[2]}_FN'] += (flag & ~label_ileo_pred & label_ileo_gt).float().sum()
+        self.confuse_matrix[f'label_{self.index_label[2]}_TN'] += (flag & ~label_ileo_pred & ~label_ileo_gt).float().sum()
+
+
         # 清洁度logit: FloatTensor[B, 4]
         cls_logit = logit[:, 3:]
-        # 清洁度label: IntTensor[B]
+        # 清洁度label: IntTensor[B] (取预测值最大的，但会被outside标签抑制)
         label_cls_pred = torch.argmax(cls_logit, dim=-1)
         # 清洁度gt: IntTensor[B]
         label_cls_gt = torch.argmax(label_gt[:, 3:], dim=-1)
+        flag = ~label_in_out_pred & ~label_in_out_gt & ~label_nonsense_pred & ~label_nonsense_gt
         for i in range(0, 4):  # i: predict
             for j in range(0, 4):  # j: gt
                 self.confuse_matrix[f'label_cleansing_pred_{self.index_label[i + 3]}_gt_{self.index_label[j + 3]}'] += \
-                    (torch.eq(label_cls_pred, i) & torch.eq(label_cls_gt, j)).float().sum()
+                    (flag & torch.eq(label_cls_pred, i) & torch.eq(label_cls_gt, j)).float().sum()  # flag用于清洁度标签抑制
+
 
     def on_validation_epoch_end(self):
         metrics = {}
@@ -189,11 +226,11 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                     self.confuse_matrix['label_cleansing_low_FN'] += cnt
                 elif i in {2, 3} and j in {2, 3}:
                     self.confuse_matrix['label_cleansing_low_TN'] += cnt
-        TP = self.confuse_matrix['label_cleansing_low_TP'] = float(self.confuse_matrix['label_cleansing_low_TP'])
-        FP = self.confuse_matrix['label_cleansing_low_FP'] = float(self.confuse_matrix['label_cleansing_low_FP'])
-        FN = self.confuse_matrix['label_cleansing_low_FN'] = float(self.confuse_matrix['label_cleansing_low_FN'])
-        TN = self.confuse_matrix['label_cleansing_low_TN'] = float(self.confuse_matrix['label_cleansing_low_TN'])
-        metrics['label_cleansing_biclassify_acc'] = (TP + TN) / (TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
+        TP = self.confuse_matrix['label_cleansing_low_TP']
+        FP = self.confuse_matrix['label_cleansing_low_FP']
+        FN = self.confuse_matrix['label_cleansing_low_FN']
+        TN = self.confuse_matrix['label_cleansing_low_TN']
+        metrics['label_cleansing_biclassify_acc'] = float(TP + TN) / float(TP + FP + FN + TN) if TP + FP + FN + TN > 0 else 0.
 
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
         self.log_dict(metrics, logger=True, sync_dist=True)
