@@ -1,8 +1,7 @@
 import warnings
 
-import lightning
 import torch
-import torch._dynamo
+import lightning
 
 import argparse
 from lightning.pytorch import Trainer
@@ -19,7 +18,7 @@ torch.set_float32_matmul_precision('high')
 accelerator = 'gpu'
 strategy = 'ddp'
 devices = [2, 3]
-max_epochs = 5
+max_epochs = 1000
 check_val_every_n_epoch = 1
 log_every_n_steps = 10
 default_root_dir = 'Experiment/Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
@@ -97,7 +96,7 @@ center_crop_shape = (224, 224)
 brightness_jitter = 0.8
 contrast_jitter = 0.8
 saturation_jitter = 0.8
-batch_size = 32
+batch_size = 48
 num_workers = 8
 dry_run = False
 

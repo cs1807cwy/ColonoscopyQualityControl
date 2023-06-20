@@ -68,25 +68,28 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
 
     def training_step(self, batch, batch_idx: int):
         image, label_gt = batch
-        logit = self(image)
+        pred = self(image)
         # loss = F.binary_cross_entropy_with_logits(logit, label_gt, reduction='mean')
         # loss = sigmoid_focal_loss_star_jit(logit, label_gt, reduction='mean')
-        loss, loss_loc, loss_cls = self._calculate_loss(logit, label_gt)
+        loss, loss_loc, loss_cls = self._calculate_loss(pred, label_gt)
         self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         self.log('train_loss_loc', loss_loc, prog_bar=True, logger=True, sync_dist=True)
         self.log('train_loss_cls', loss_cls, prog_bar=True, logger=True, sync_dist=True)
 
         # 计算总体train_mean_acc
-        label_pred_tf = torch.ge(logit, self.hparams.thresh)
+        label_pred_tf = torch.ge(pred, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
         mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
         self.log(f'train_thresh_mean_acc', mean_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         return loss
 
-    def _calculate_loss(self, logit, gt):
-        loss_loc = F.binary_cross_entropy_with_logits(logit, gt, reduction='mean')
-        loss_cls = torch.mean(F.cross_entropy(logit[:, 3:], gt[:, 3:], reduction='none') * (1. - gt[:, 0]) * (1. - gt[:, 1]))
+    def _calculate_loss(self, pred, gt):
+        # 逐标签二元交叉熵损失
+        loss_loc = F.binary_cross_entropy_with_logits(pred, gt, reduction='mean')
+        # 加权清洁度交叉熵损失
+        loss_cls = torch.mean(F.cross_entropy(pred[:, 3:], gt[:, 3:], reduction='none') *
+                              (1. - gt[:, 0]) * (1. - gt[:, 1]) * (1. - torch.clamp(pred[:, 0], 0., 1.)) * (1. - torch.clamp(pred[:, 1], 0., 1.)))
         return loss_loc + self.hparams.cls_weight * loss_cls, loss_loc, loss_cls
 
     def configure_optimizers(self):
@@ -143,7 +146,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
 
     def validation_step(self, batch, batch_idx: int):
         image, label_gt = batch
-        logit = self(image)
+        logit = F.sigmoid(self(image))
 
         # 计算val_acc
         # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
@@ -289,7 +292,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
 
     def test_step(self, batch, batch_idx: int):
         image, label_gt = batch
-        logit = self(image)
+        logit = F.sigmoid(self(image))
 
         # 计算test_acc
         # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
@@ -480,7 +483,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         image = batch  # x是图像tensor，ox是原始图像tensor
-        logit = self(image)
+        logit = F.sigmoid(self(image))
 
         # 体内外logit: FloatTensor[B]
         in_out_logit = logit[:, 0]
