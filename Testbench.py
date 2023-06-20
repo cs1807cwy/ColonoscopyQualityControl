@@ -13,6 +13,7 @@ if __name__ == '__main__':
     if a != b:
         print('ne')
 
+    print(torch.compile())
     # path = '../aaa/bbb/ccc.txt'
     # jpath = osp.join('/mnt/data4/cwy/Test', path)
     # print(jpath)
