@@ -21,16 +21,16 @@ devices = [2, 3]
 max_epochs = 1000
 check_val_every_n_epoch = 1
 log_every_n_steps = 10
-default_root_dir = 'Experiment/Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
+default_root_dir = 'Experiment/R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
 logger = [
     TensorBoardLogger(
         save_dir='Experiment',
-        name='Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000',
+        name='R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000',
         version='tensorboard_train_val'
     ),
     CSVLogger(
         save_dir='Experiment',
-        name='Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000',
+        name='R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000',
         version='csv_train_val'
     )
 ]
@@ -83,14 +83,24 @@ callbacks = [
 
 # hparams for DataModule
 data_class_path = ColonoscopyMultiLabelDataModule
-data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/folds/fold0.json'
 data_root = '/mnt/data/cwy/Datasets/UIHNJMuL'
+# Loc split
+data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/folds/fold0.json'
 sample_weight = {
     'ileocecal': 4800,
     'nofeature': 4800,
-    'nonsense': 96,
+    'nonsense': 480,
     'outside': 96,
 }
+# cleansing split
+# data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/cls_folds/fold0.json'
+# sample_weight = {
+#     'nobbps': 1800,
+#     'bbps0': 900,
+#     'bbps1': 900,
+#     'bbps2': 900,
+#     'bbps3': 900,
+# }
 resize_shape = (224, 224)
 center_crop_shape = (224, 224)
 brightness_jitter = 0.8
@@ -112,7 +122,7 @@ lr = 0.0001
 epochs = max_epochs
 momentum = 0.9
 weight_decay = 0.0001
-cls_weight = 0.2
+cls_weight = 1.0
 
 # global settings
 seed_everything = 0
@@ -273,3 +283,4 @@ if __name__ == '__main__':
     parser.add_argument('-vsd', '--viz_save_dir', default=None, help='测试时，可视化保存目录')
     args = parser.parse_args()
     main(args)
+    # nohup python MultiLabelTrain.py -s fit -cm > log/R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000.log &
