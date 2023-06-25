@@ -83,13 +83,13 @@ callbacks = [
 
 # hparams for DataModule
 data_class_path = ColonoscopyMultiLabelDataModule
-data_index_file = '/mnt/data/cwy/Datasets/UIHWMuL_Nerthus/folds/fold0.json'
-data_root = '/mnt/data/cwy/Datasets/UIHWMuL_Nerthus'
+data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/folds/fold0.json'
+data_root = '/mnt/data/cwy/Datasets/UIHNJMuL'
 sample_weight = {
-    'ileocecal': 4950,
-    'nofeature': 4950,
-    'nonsense': 99,
-    'outside': 99,
+    'ileocecal': 4800,
+    'nofeature': 4800,
+    'nonsense': 96,
+    'outside': 96,
 }
 resize_shape = (224, 224)
 center_crop_shape = (224, 224)
@@ -102,7 +102,7 @@ dry_run = False
 
 # hparams for Module
 model_class_path = MultiLabelClassifier_ViT_L_Patch16_224_Class7
-input_shape = (224, 224)
+input_shape = (224, 224)  # 主干网络固定输入规格为(224, 224)，请勿修改！
 num_heads = 8
 attention_lambda = 0.3
 num_classes = 7
@@ -170,6 +170,7 @@ class MultiLabelClassifyLauncher:
 
         # custom settings
         self.model_save_path = args.model_save_path
+        self.compile_model = args.compile_model
 
     def get_trainer(self) -> Trainer:
         trainer = Trainer(
@@ -219,7 +220,9 @@ class MultiLabelClassifyLauncher:
         return model
 
     def launch(self, stage):
-        model = torch.compile(self.get_model(), mode='default')  # mode=['default', 'reduce-overhead', 'max-autotune']
+        model = self.get_model()
+        if self.compile_model:
+            model = torch.compile(model, mode='default')  # mode=['default', 'reduce-overhead', 'max-autotune']
         data = self.get_data()
         trainer = self.get_trainer()
 
@@ -265,6 +268,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stage', required=True, choices=['fit', 'validate', 'test', 'predict', 'export_model'])
+    parser.add_argument('-cm', '--compile_model', action='store_true')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径')
     parser.add_argument('-vsd', '--viz_save_dir', default=None, help='测试时，可视化保存目录')
     args = parser.parse_args()

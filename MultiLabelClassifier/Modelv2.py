@@ -89,7 +89,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         loss_loc = F.binary_cross_entropy_with_logits(pred, gt, reduction='mean')
         # 加权清洁度交叉熵损失
         loss_cls = torch.mean(F.cross_entropy(pred[:, 3:], gt[:, 3:], reduction='none') *
-                              (1. - gt[:, 0]) * (1. - gt[:, 1]) * (1. - torch.clamp(pred[:, 0], 0., 1.)) * (1. - torch.clamp(pred[:, 1], 0., 1.)))
+                              (1. - gt[:, 0]) * (1. - gt[:, 1]) * (1. - F.sigmoid(pred[:, 0])) * (1. - F.sigmoid(pred[:, 1])))
         return loss_loc + self.hparams.cls_weight * loss_cls, loss_loc, loss_cls
 
     def configure_optimizers(self):
@@ -152,7 +152,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
         label_pred_tf = torch.ge(logit, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
-        mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
+        mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log('val_thresh_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
 
         # 体内外logit: FloatTensor[B]
@@ -298,7 +298,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
         label_pred_tf = torch.ge(logit, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
-        mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
+        mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log('test_thresh_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
 
         # 体内外logit: FloatTensor[B]
