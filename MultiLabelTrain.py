@@ -1,4 +1,5 @@
 import warnings
+import os.path as osp
 
 import torch
 import lightning
@@ -21,17 +22,18 @@ devices = [2, 3]
 max_epochs = 1000
 check_val_every_n_epoch = 1
 log_every_n_steps = 10
-default_root_dir = 'Experiment/R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
+experiment_name = 'R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
+default_root_dir = osp.join('Experiment', 'R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000')
 logger = [
     TensorBoardLogger(
         save_dir='Experiment',
-        name='R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000',
-        version='tensorboard_train_val'
+        name=experiment_name,
+        version='tensorboard_train_val_0'
     ),
     CSVLogger(
         save_dir='Experiment',
-        name='R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000',
-        version='csv_train_val'
+        name=experiment_name,
+        version='csv_train_val_0'
     )
 ]
 callbacks = [
@@ -40,9 +42,9 @@ callbacks = [
         save_last=True,
         monitor='epoch',
         mode='max',
-        every_n_epochs=max(1, max_epochs // 10),
+        every_n_epochs=20,
         filename='WMuL_{epoch:03d}',
-        save_top_k=10
+        save_top_k=max_epochs // 20
     ),
     ModelCheckpoint(
         monitor='val_thresh_mean_acc',
@@ -60,24 +62,24 @@ callbacks = [
         filename='WMuL_best_nsAcc_{epoch:03d}_{label_nonsense_acc:.4f}'
     ),
     ModelCheckpoint(
-        monitor='label_ileocecal_acc',
+        monitor='label_ileocecal_acc_thresh',
         mode='max',
-        filename='WMuL_best_ileoAcc_{epoch:03d}_{label_ileocecal_acc:.4f}'
+        filename='WMuL_best_ileoAcc_{epoch:03d}_{label_ileocecal_acc_thresh:.4f}'
     ),
     ModelCheckpoint(
-        monitor='label_ileocecal_prec',
+        monitor='label_ileocecal_prec_thresh',
         mode='max',
-        filename='WMuL_best_ileoPrec_{epoch:03d}_{label_ileocecal_prec:.4f}'
+        filename='WMuL_best_ileoPrec_{epoch:03d}_{label_ileocecal_prec_thresh:.4f}'
     ),
     ModelCheckpoint(
-        monitor='label_cleansing_acc',
+        monitor='label_cleansing_acc_thresh',
         mode='max',
-        filename='WMuL_best_cls4Acc_{epoch:03d}_{label_cleansing_acc:.4f}'
+        filename='WMuL_best_cls4Acc_{epoch:03d}_{label_cleansing_acc_thresh:.4f}'
     ),
     ModelCheckpoint(
-        monitor='label_cleansing_biclassify_acc',
+        monitor='label_cleansing_biclassify_acc_thresh',
         mode='max',
-        filename='WMuL_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc:.4f}'
+        filename='WMuL_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc_thresh:.4f}'
     ),
 ]
 
@@ -123,6 +125,8 @@ epochs = max_epochs
 momentum = 0.9
 weight_decay = 0.0001
 cls_weight = 1.0
+outside_acc_thresh = 0.9
+nonsense_acc_thresh = 0.9
 
 # global settings
 seed_everything = 0
@@ -132,10 +136,10 @@ ckpt_path = None
 class MultiLabelClassifyLauncher:
     def __init__(self, args):
         # hparams for Trainer
-        self.accelerator = accelerator
+        self.accelerator = args.accelerator
         self.strategy = strategy
-        self.devices = devices
-        self.max_epochs = max_epochs
+        self.devices = args.devices
+        self.max_epochs = args.max_epochs
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.log_every_n_steps = log_every_n_steps
         self.default_root_dir = default_root_dir
@@ -152,7 +156,7 @@ class MultiLabelClassifyLauncher:
         self.brightness_jitter = brightness_jitter
         self.contrast_jitter = contrast_jitter
         self.saturation_jitter = saturation_jitter
-        self.batch_size = batch_size
+        self.batch_size = args.batch_size
         self.num_workers = num_workers
         self.dry_run = dry_run
 
@@ -162,18 +166,20 @@ class MultiLabelClassifyLauncher:
         self.num_heads = num_heads
         self.attention_lambda = attention_lambda
         self.num_classes = num_classes
-        self.thresh = thresh
+        self.thresh = args.thresh
         # batch_size
-        self.lr = lr
-        self.epochs = epochs
+        self.lr = args.lr
+        self.epochs = self.max_epochs
         self.momentum = momentum
         self.weight_decay = weight_decay
-        self.cls_weight = cls_weight
+        self.cls_weight = args.cls_weight
+        self.outside_acc_thresh = outside_acc_thresh
+        self.nonsense_acc_thresh = nonsense_acc_thresh
         self.viz_save_dir = args.viz_save_dir
 
         # global settings
-        self.seed_everything = seed_everything
-        self.ckpt_path = ckpt_path
+        self.seed_everything = args.seed_everything
+        self.ckpt_path = args.ckpt_path
 
         if self.seed_everything is not None:
             lightning.seed_everything(self.seed_everything)
@@ -225,6 +231,8 @@ class MultiLabelClassifyLauncher:
             momentum=self.momentum,
             weight_decay=self.weight_decay,
             cls_weight=self.cls_weight,
+            outside_acc_thresh=self.outside_acc_thresh,
+            nonsense_acc_thresh=self.nonsense_acc_thresh,
             save_dir=self.viz_save_dir
         )
         return model
@@ -278,7 +286,19 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stage', required=True, choices=['fit', 'validate', 'test', 'predict', 'export_model'])
+    # parser.add_argument('-en', '--experiment_name', default=experiment_name, help='实验名称')
+    parser.add_argument('-se', '--seed_everything', type=int, default=seed_everything, help='随机种子')
+    parser.add_argument('-a', '--accelerator', default=accelerator, choices=['auto', 'cpu', 'gpu'], help='加速器')
+    parser.add_argument('-d', '--devices', type=int, nargs='+', default=devices, help='设备号')
     parser.add_argument('-cm', '--compile_model', action='store_true')
+    parser.add_argument('-me', '--max_epochs', type=int, default=max_epochs, help='训练纪元总数')
+    parser.add_argument('-cw', '--cls_weight', type=float, default=cls_weight, help='清洁度损失权重')
+    parser.add_argument('-oat', '--outside_acc_thresh', type=float, default=outside_acc_thresh, help='outside性能筛选线')
+    parser.add_argument('-nat', '--nonsense_acc_thresh', type=float, default=nonsense_acc_thresh, help='nonsense性能筛选线')
+    parser.add_argument('-bs', '--batch_size', type=int, default=batch_size, help='批大小')
+    parser.add_argument('-t', '--thresh', type=float, default=thresh, help='置信阈值')
+    parser.add_argument('-lr', '--lr', type=float, default=lr, help='学习率')
+    parser.add_argument('-cp', '--ckpt_path', default=ckpt_path, help='预训练模型路径')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径')
     parser.add_argument('-vsd', '--viz_save_dir', default=None, help='测试时，可视化保存目录')
     args = parser.parse_args()

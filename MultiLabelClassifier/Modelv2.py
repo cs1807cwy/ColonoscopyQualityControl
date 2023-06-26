@@ -28,6 +28,8 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             momentum: float = 0.9,
             weight_decay: float = 0.0001,
             cls_weight: float = 4.,
+            outside_acc_thresh: float = 0.9,
+            nonsense_acc_thresh: float = 0.9,
             save_dir: str = 'test_viz',
             **kwargs,
     ):
@@ -50,6 +52,8 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             6: 'bbps3',
         }
 
+        self.outside_acc_thresh = outside_acc_thresh
+        self.nonsense_acc_thresh = nonsense_acc_thresh
         self.confuse_matrix: Dict = {}
 
     def forward(self, feature):
@@ -79,7 +83,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # 计算总体train_mean_acc
         label_pred_tf = torch.ge(pred, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
-        mean_acc = torch.eq(label_pred_tf, label_gt_tf).float().mean()
+        mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log(f'train_thresh_mean_acc', mean_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         return loss
@@ -88,8 +92,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # 逐标签二元交叉熵损失
         loss_loc = F.binary_cross_entropy_with_logits(pred, gt, reduction='mean')
         # 加权清洁度交叉熵损失
-        loss_cls = torch.mean(F.cross_entropy(pred[:, 3:], gt[:, 3:], reduction='none') *
-                              (1. - gt[:, 0]) * (1. - gt[:, 1]) * (1. - F.sigmoid(pred[:, 0])) * (1. - F.sigmoid(pred[:, 1])))
+        loss_cls = F.cross_entropy(pred[:, 3:], gt[:, 3:], reduction='mean')
         return loss_loc + self.hparams.cls_weight * loss_cls, loss_loc, loss_cls
 
     def configure_optimizers(self):
@@ -227,8 +230,21 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         FP: float = self.confuse_matrix[f'label_{self.index_label[2]}_FP']
         FN: float = self.confuse_matrix[f'label_{self.index_label[2]}_FN']
         TN: float = self.confuse_matrix[f'label_{self.index_label[2]}_TN']
-        metrics[f'label_{self.index_label[2]}_prec'] = TP / (TP + FP) if TP + FP > 0. else 0.
-        metrics[f'label_{self.index_label[2]}_acc'] = (TP + TN) / (TP + FP + FN + TN) if TP + FP + FN + TN > 0. else 0.
+        prec_nothresh = TP / (TP + FP) if TP + FP > 0. else 0.
+        prec_thresh = prec_nothresh \
+            if metrics[f'label_{self.index_label[0]}_acc'] > self.outside_acc_thresh \
+               and metrics[f'label_{self.index_label[1]}_acc'] > self.nonsense_acc_thresh \
+            else 0.
+        metrics[f'label_{self.index_label[2]}_prec_nothresh'] = prec_nothresh
+        metrics[f'label_{self.index_label[2]}_prec_thresh'] = prec_thresh
+
+        acc_nothresh = (TP + TN) / (TP + FP + FN + TN) if TP + FP + FN + TN > 0. else 0.
+        acc_thresh = acc_nothresh \
+            if metrics[f'label_{self.index_label[0]}_acc'] > self.outside_acc_thresh \
+               and metrics[f'label_{self.index_label[1]}_acc'] > self.nonsense_acc_thresh \
+            else 0.
+        metrics[f'label_{self.index_label[2]}_acc_nothresh'] = acc_nothresh
+        metrics[f'label_{self.index_label[2]}_acc_thresh'] = acc_thresh
 
         # 四分清洁度准确率
         total: float = 0.
@@ -239,7 +255,13 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                 if i == j:
                     correct += tmp
                 total += tmp
-        metrics[f'label_cleansing_acc'] = correct / total if total > 0. else 0.
+        acc_nothresh = correct / total if total > 0. else 0.
+        acc_thresh = acc_nothresh \
+            if metrics[f'label_{self.index_label[0]}_acc'] > self.outside_acc_thresh \
+               and metrics[f'label_{self.index_label[1]}_acc'] > self.nonsense_acc_thresh \
+            else 0.
+        metrics[f'label_cleansing_acc_nothresh'] = acc_thresh
+        metrics[f'label_cleansing_acc_thresh'] = acc_thresh
 
         # bbps0-1/bbps2-3二分清洁度准确率
         for i in range(0, 4):  # i: predict
@@ -257,7 +279,13 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         FP: float = self.confuse_matrix['label_cleansing_low_FP']
         FN: float = self.confuse_matrix['label_cleansing_low_FN']
         TN: float = self.confuse_matrix['label_cleansing_low_TN']
-        metrics['label_cleansing_biclassify_acc'] = (TP + TN) / (TP + FP + FN + TN) if TP + FP + FN + TN > 0. else 0.
+        acc_nothresh = (TP + TN) / (TP + FP + FN + TN) if TP + FP + FN + TN > 0. else 0.
+        acc_thresh = acc_nothresh \
+            if metrics[f'label_{self.index_label[0]}_acc'] > self.outside_acc_thresh \
+               and metrics[f'label_{self.index_label[1]}_acc'] > self.nonsense_acc_thresh \
+            else 0.
+        metrics['label_cleansing_biclassify_acc_nothresh'] = acc_nothresh
+        metrics['label_cleansing_biclassify_acc_thresh'] = acc_thresh
 
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
         self.log_dict(metrics, logger=True, sync_dist=True)
