@@ -1,6 +1,12 @@
 import torch
 import torch.nn as nn
 
+"""
+Original CSRA Implementation at https://github.com/Kevinz-code/CSRA
+See Original Work "Residual Attention: A Simple but Effective Method for Multi-Label Recognition"
+  at https://openaccess.thecvf.com/content/ICCV2021/html/Zhu_Residual_Attention_A_Simple_but_Effective_Method_for_Multi-Label_Recognition_ICCV_2021_paper.html
+"""
+
 
 class ClassSpecificResidualAttention(nn.Module):  # one basic block
     def __init__(

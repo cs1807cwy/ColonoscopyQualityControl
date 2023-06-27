@@ -85,7 +85,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
     def _calculate_loss(self, pred, gt):
         # 逐标签二元交叉熵损失
         loss_loc = F.binary_cross_entropy_with_logits(pred, gt, reduction='mean')
-        # 加权清洁度交叉熵损失
+        # 清洁度交叉熵损失
         loss_cls = F.cross_entropy(pred[:, 3:], gt[:, 3:], reduction='mean')
         return loss_loc + self.hparams.cls_weight * loss_cls, loss_loc, loss_cls
 
