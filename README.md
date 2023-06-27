@@ -38,6 +38,5 @@ Example config YAML for training and testing can be found in:
 Many key configurations are detailly noted in:
 ```
 <ProjectRoot>/Config/<TaskConfig>/config_train_example.yaml
-
 ```
 Also please refer to the Docs: [Pytorch Lighting 2.0.2](https://pytorch-lightning.readthedocs.io/en/2.0.2/starter/introduction.html)
