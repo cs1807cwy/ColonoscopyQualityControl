@@ -11,6 +11,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 from MultiLabelClassifier import *
 
+# for reproduction
+# 用于复现
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 torch.set_float32_matmul_precision('high')
