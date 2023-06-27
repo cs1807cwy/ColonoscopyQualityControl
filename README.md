@@ -40,7 +40,11 @@ CUDA Version 11.2
 
 ## 环境配置
 
+Config new environment using Anaconda
+
 使用Anaconda配置运行环境
+
+Create Virtual Environment `<VirtualEnv>` and install Python3.10 interpreter:
 
 创建虚拟环境`<VirtualEnv>`，安装Python3.10解释器：
 
@@ -48,11 +52,15 @@ CUDA Version 11.2
 conda create -n <VirtualEnv> python=3.10 -y
 ```
 
+Activate Environment:
+
 进入环境：
 
 ```bash
 conda activate cwypy310pt20
 ```
+
+Install PyTorch2.0 related components:
 
 安装PyTorch2.0相关组件：
 
@@ -60,11 +68,15 @@ conda activate cwypy310pt20
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
 ```
 
+Install Lightning related components:
+
 安装Lightning相关组件：
 
 ```bash
 conda install lightning "pytorch-lightning[extra]" -c conda-forge -y
 ```
+
+Install supporting components (model zoo, logger):
 
 安装模型库、日志记录器等辅助支持：
 
@@ -72,10 +84,12 @@ conda install lightning "pytorch-lightning[extra]" -c conda-forge -y
 conda install tensorboardX timm -c conda-forge -y
 ```
 
+Install utility packages:
+
 安装实用库：
 
 ```bash
-conda install numpy pyyaml tqdm pillow
+conda install numpy pyyaml tqdm pillow -y
 ```
 
 ## 启动
