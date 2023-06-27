@@ -86,6 +86,20 @@ class ColonoscopyMultiLabelDataModule(LightningDataModule):
                 self.saturation_jitter,
                 self.dry_run
             )
+        elif stage == 'validate':
+            self.validation_dataset = ColonoscopyMultiLabelDataset(
+                self.data_index_file,
+                self.data_root,
+                self.sample_weight,
+                True,
+                False,
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+                self.dry_run
+            )
         elif stage == 'test':
             self.test_dataset = ColonoscopyMultiLabelDataset(
                 self.data_index_file,

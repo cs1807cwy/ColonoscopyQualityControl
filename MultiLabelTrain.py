@@ -28,12 +28,12 @@ logger = [
     TensorBoardLogger(
         save_dir='Experiment',
         name=experiment_name,
-        version='tensorboard_train_val_0'
+        version='tensorboard_train_val'
     ),
     CSVLogger(
         save_dir='Experiment',
         name=experiment_name,
-        version='csv_train_val_0'
+        version='csv_train_val'
     )
 ]
 callbacks = [
@@ -42,7 +42,7 @@ callbacks = [
         save_last=True,
         monitor='epoch',
         mode='max',
-        every_n_epochs=20,
+        every_n_epochs=20,   # 每20个epochs保存一个检查点
         filename='WMuL_{epoch:03d}',
         save_top_k=max_epochs // 20
     ),
@@ -109,7 +109,7 @@ brightness_jitter = 0.8
 contrast_jitter = 0.8
 saturation_jitter = 0.8
 batch_size = 48
-num_workers = 8
+num_workers = 16
 dry_run = False
 
 # hparams for Module
