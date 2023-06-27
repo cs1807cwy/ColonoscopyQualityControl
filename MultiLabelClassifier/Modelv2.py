@@ -9,7 +9,6 @@ import torchvision.utils
 from lightning.pytorch import LightningModule
 
 from .Network import *
-from .LossFunction import *
 
 
 class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
@@ -23,15 +22,12 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             batch_size: int = 16,
             lr: float = 0.0001,
             epochs: int = 1000,
-            b1: float = 0.9,
-            b2: float = 0.999,
             momentum: float = 0.9,
             weight_decay: float = 0.0001,
             cls_weight: float = 4.,
             outside_acc_thresh: float = 0.9,
             nonsense_acc_thresh: float = 0.9,
             save_dir: str = 'test_viz',
-            **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -73,8 +69,6 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
     def training_step(self, batch, batch_idx: int):
         image, label_gt = batch
         pred = self(image)
-        # loss = F.binary_cross_entropy_with_logits(logit, label_gt, reduction='mean')
-        # loss = sigmoid_focal_loss_star_jit(logit, label_gt, reduction='mean')
         loss, loss_loc, loss_cls = self._calculate_loss(pred, label_gt)
         self.log('train_loss', loss, prog_bar=True, logger=True, sync_dist=True)
         self.log('train_loss_loc', loss_loc, prog_bar=True, logger=True, sync_dist=True)
@@ -96,7 +90,6 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         return loss_loc + self.hparams.cls_weight * loss_cls, loss_loc, loss_cls
 
     def configure_optimizers(self):
-        # return self.configure_adam_cosine()
         return self._configure_sgd_cosine()
 
     def _configure_sgd_cosine(self):
@@ -113,22 +106,6 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                 {'params': classifier, 'lr': self.hparams.lr * 10.}
             ],
             momentum=self.hparams.momentum, weight_decay=self.hparams.weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.hparams.epochs)
-        return [optimizer], [scheduler]
-
-    def _configure_adam_cosine(self):
-        # optimizer and warmup
-        backbone, classifier = [], []
-        for name, param in self.named_parameters():
-            if 'classify_head' in name:
-                classifier.append(param)
-            else:
-                backbone.append(param)
-        optimizer = torch.optim.AdamW(
-            [
-                {'params': backbone, 'lr': self.hparams.lr},
-                {'params': classifier, 'lr': self.hparams.lr * 10.}
-            ], betas=(self.hparams.b1, self.hparams.b2), amsgrad=True)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.hparams.epochs)
         return [optimizer], [scheduler]
 
