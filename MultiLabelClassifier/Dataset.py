@@ -23,7 +23,7 @@ class ColonoscopyMultiLabelDataset(Dataset):
                  sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
                  for_validation: bool = False,
                  for_test: bool = False,  # for_test 有最高优先级
-                 resize_shape: Tuple[int, int] = (268, 268),
+                 resize_shape: Tuple[int, int] = (224, 224),
                  center_crop_shape: Tuple[int, int] = (224, 224),
                  brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
                  contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
@@ -32,22 +32,27 @@ class ColonoscopyMultiLabelDataset(Dataset):
                  **kwargs,
                  ):
         """
-        json format {
-            code: [outside, ileocecal, bbps0, bbps1, bbps2, bbps3]
+        data_index_file json format {
+            code: [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3]
             train: {
               ileocecal:
               {
-                ./ileocecal_xxxxxx.png: [0., 1., 0., 0., 0., 1.]
+                ./ileocecal_xxxxxx.png: [0., 0., 1., 0., 0., 0., 1.]
                 ...
               }
               nofeature:
               {
-                ../some_dataset/nofeature_xxxxxx.png: [0., 0., 0., 1., 0., 0.]
+                ../some_dataset/nofeature_xxxxxx.png: [0., 0., 0., 0., 1., 0., 0.]
+                ...
+              }
+              nonsense:
+              {
+                ../some_dataset/nonsense_xxxxxx.png: [0., 1., 0., 0., 0., 0., 0.]
                 ...
               }
               outside:
               {
-                C:/some_dataset/outside_xxxxxx.png: [1., 0., 0., 0., 0., 0.]
+                C:/some_dataset/outside_xxxxxx.png: [1., 0., 0., 0., 0., 0., 0.]
                 ...
               }
             }
@@ -96,7 +101,7 @@ class ColonoscopyMultiLabelDataset(Dataset):
 
         self.transform_train = transforms.Compose([
             transforms.ToTensor(),
-            # 缩放和截去黑边
+            # 缩放和边缘裁剪
             transforms.Resize(resize_shape, antialias=True),
             transforms.CenterCrop(center_crop_shape),
             # 亮度、对比度、饱和度泛化
