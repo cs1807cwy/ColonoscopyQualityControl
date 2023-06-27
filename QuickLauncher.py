@@ -228,7 +228,7 @@ def print_args(parser: Union[str, argparse.ArgumentParser], args: argparse.Names
         args_str = '\n'.join(arg_list)
         print(args_str)
     elif isinstance(parser, argparse.ArgumentParser):
-        default_str_list = ['=' * 20 + ' Default Args ' + '=' * 20]
+        default_str_list = ['=' * 20 + ' Specified Args ' + '=' * 20]
         non_default_str_list = ['=' * 20 + ' Not Default Args ' + '=' * 20]
 
         for k, v in args_dict.items():
@@ -259,12 +259,12 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
             TensorBoardLogger(
                 save_dir='Experiment',
                 name=args.experiment_name,
-                version='v1'
+                version=f'tensorboard_{args.version}'
             ),
             CSVLogger(
                 save_dir='Experiment',
                 name=args.experiment_name,
-                version='v1'
+                version=f'csv_{args.version}'
             )
         ],
         # endregion
@@ -357,6 +357,7 @@ if __name__ == '__main__':
                         help='验证纪元间隔，1表示每个训练纪元运行一次验证流程')
     parser.add_argument('-ls', '--log_every_n_steps', type=int, default=log_every_n_steps, help='日志记录间隔，1表示每个迭代轮次记录一次日志')
     parser.add_argument('-en', '--experiment_name', default=experiment_name, help='实验名称，用于生成实验目录')
+    parser.add_argument('-ver', '--version', default='v1', help='实验版本号')
     parser.add_argument('-ce', '--ckpt_every_n_epochs', type=int, default=ckpt_every_n_epochs,
                         help='检查点保存间隔，1表示每个训练纪元保存一次检查点')
     parser.add_argument('-trr', '--tqdm_refresh_rate', type=int, default=20, help='进度条刷新间隔，1表示每个迭代轮次进行一次刷新')
