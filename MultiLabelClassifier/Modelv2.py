@@ -75,7 +75,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.log('train_loss_cls', loss_cls, prog_bar=True, logger=True, sync_dist=True)
 
         # 计算总体train_mean_acc
-        label_pred_tf = torch.ge(pred, self.hparams.thresh)
+        label_pred_tf = torch.ge(F.sigmoid(pred), self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
         mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log(f'train_thresh_mean_acc', mean_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
@@ -523,6 +523,6 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                 label_ileo_pred.unsqueeze(1),
                 label_cls_code_pred
             ],
-            dim=-1).float()
+            dim=-1).float().cpu()
 
         return logit, label_pred

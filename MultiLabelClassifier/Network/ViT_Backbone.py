@@ -1,8 +1,6 @@
 import torch.nn as nn
 import timm
 
-__all__ = ['ViT_L_Patch16_224_Extractor']
-
 """
 Original ViT-L Implementation at https://github.com/google-research/vision_transformer
 See Original Work "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"
