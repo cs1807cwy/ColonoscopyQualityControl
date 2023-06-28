@@ -41,11 +41,11 @@ sample_weight = {
 # cleansing split Ref
 # data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/cls_folds/fold0.json'
 # sample_weight = {
-#     'nobbps': 1800,
-#     'bbps0': 900,
-#     'bbps1': 900,
-#     'bbps2': 900,
-#     'bbps3': 900,
+#     'nobbps': 600,
+#     'bbps0': 300,
+#     'bbps1': 300,
+#     'bbps2': 2100,
+#     'bbps3': 2100,
 # }
 resize_shape = (224, 224)
 center_crop_shape = (224, 224)
