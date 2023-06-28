@@ -346,7 +346,7 @@ if __name__ == '__main__':
 
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True, choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
-                        help='运行模式：fit-训练(包含训练时验证)，validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
+                        help='运行模式：fit-训练(包含训练时验证，可通过检查点恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true', help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
 
