@@ -117,7 +117,7 @@ class MultiLabelClassifyLauncher:
         self.cls_weight = args.cls_weight
         self.outside_acc_thresh = args.outside_acc_thresh
         self.nonsense_acc_thresh = args.nonsense_acc_thresh
-        self.viz_save_dir = args.viz_save_dir
+        self.test_viz_save_dir = args.test_viz_save_dir
 
         # global settings
         self.seed_everything = args.seed_everything
@@ -175,7 +175,7 @@ class MultiLabelClassifyLauncher:
             cls_weight=self.cls_weight,
             outside_acc_thresh=self.outside_acc_thresh,
             nonsense_acc_thresh=self.nonsense_acc_thresh,
-            save_dir=self.viz_save_dir
+            test_viz_save_dir=self.test_viz_save_dir
         )
         return model
 
@@ -346,7 +346,7 @@ if __name__ == '__main__':
 
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True, choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
-                        help='运行模式：fit-训练(包含训练时验证，可通过检查点恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
+                        help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true', help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
 
@@ -395,7 +395,7 @@ if __name__ == '__main__':
     parser.add_argument('-cw', '--cls_weight', type=float, default=cls_weight, help='清洁度损失权重')
     parser.add_argument('-oat', '--outside_acc_thresh', type=float, default=outside_acc_thresh, help='outside性能筛选线')
     parser.add_argument('-nat', '--nonsense_acc_thresh', type=float, default=nonsense_acc_thresh, help='nonsense性能筛选线')
-    parser.add_argument('-vsd', '--viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
+    parser.add_argument('-tvsd', '--test_viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
 
     main(parser, parser.parse_args())
     # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 192 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &

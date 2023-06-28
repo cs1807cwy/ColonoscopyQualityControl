@@ -27,7 +27,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             cls_weight: float = 4.,
             outside_acc_thresh: float = 0.9,
             nonsense_acc_thresh: float = 0.9,
-            save_dir: str = 'test_viz',
+            test_viz_save_dir: str = 'test_viz',
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -282,18 +282,18 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.confuse_matrix['label_cleansing_low_FN'] = 0.
         self.confuse_matrix['label_cleansing_low_TN'] = 0.
 
-        if self.hparams.save_dir is not None:
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_outside_gt_inside'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_inside_gt_outside'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_nonsense_gt_fine'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_fine_gt_nonsense'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_ileocecal_gt_nofeature'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_nofeature_gt_ileocecal'), exist_ok=True)
+        if self.hparams.test_viz_save_dir is not None:
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_outside_gt_inside'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_inside_gt_outside'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_nonsense_gt_fine'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_fine_gt_nonsense'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_ileocecal_gt_nofeature'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_nofeature_gt_ileocecal'), exist_ok=True)
             for i in range(0, 4):  # i: predict
                 for j in range(0, 4):  # j: gt
-                    os.makedirs(os.path.join(self.hparams.save_dir, f'pred_bbps{i}_gt_bbps{j}'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_lq_gt_hq'), exist_ok=True)
-            os.makedirs(os.path.join(self.hparams.save_dir, 'pred_hq_gt_lq'), exist_ok=True)
+                    os.makedirs(os.path.join(self.hparams.test_viz_save_dir, f'pred_bbps{i}_gt_bbps{j}'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_lq_gt_hq'), exist_ok=True)
+            os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_hq_gt_lq'), exist_ok=True)
 
     def test_step(self, batch, batch_idx: int):
         image, label_gt = batch
@@ -319,14 +319,14 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.confuse_matrix[f'label_{self.index_label[0]}_TN'] += float((~label_in_out_pred & ~label_in_out_gt).float().sum().cpu())
 
         # 保存体内外分类错误的帧
-        if self.hparams.save_dir is not None:
+        if self.hparams.test_viz_save_dir is not None:
             cnt = 0
             for img, lb, gt in zip(image, label_in_out_pred, label_in_out_gt):
                 if lb != gt:
                     torchvision.utils.save_image(
                         img,
                         os.path.join(
-                            self.hparams.save_dir,
+                            self.hparams.test_viz_save_dir,
                             'pred_outside_gt_inside' if lb else 'pred_inside_gt_outside',
                             f'batch_{batch_idx}_{cnt}.png'))
                 cnt += 1
@@ -346,14 +346,14 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.confuse_matrix[f'label_{self.index_label[1]}_TN'] += float((flag & ~label_nonsense_pred & ~label_nonsense_gt).float().sum().cpu())
 
         # 保存帧质量分类错误的帧
-        if self.hparams.save_dir is not None:
+        if self.hparams.test_viz_save_dir is not None:
             cnt = 0
             for img, lb, gt in zip(image, label_nonsense_pred, label_nonsense_gt):
                 if lb != gt:
                     torchvision.utils.save_image(
                         img,
                         os.path.join(
-                            self.hparams.save_dir,
+                            self.hparams.test_viz_save_dir,
                             'pred_nonsense_gt_fine' if lb else 'pred_fine_gt_nonsense',
                             f'batch_{batch_idx}_{cnt}.png'))
                 cnt += 1
@@ -371,14 +371,14 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.confuse_matrix[f'label_{self.index_label[2]}_TN'] += float((flag & ~label_ileo_pred & ~label_ileo_gt).float().sum().cpu())
 
         # 保存回盲部分类错误的帧
-        if self.hparams.save_dir is not None:
+        if self.hparams.test_viz_save_dir is not None:
             cnt = 0
             for img, lb, gt in zip(image, label_ileo_pred, label_ileo_gt):
                 if lb != gt:
                     torchvision.utils.save_image(
                         img,
                         os.path.join(
-                            self.hparams.save_dir,
+                            self.hparams.test_viz_save_dir,
                             'pred_ileocecal_gt_nofeature' if lb else 'pred_nofeature_gt_ileocecal',
                             f'batch_{batch_idx}_{cnt}.png'))
                 cnt += 1
@@ -396,7 +396,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                     float((flag & torch.eq(label_cls_pred, i) & torch.eq(label_cls_gt, j)).float().sum().cpu())  # flag用于清洁度标签抑制
 
         # 保存清洁度分类错误的帧
-        if self.hparams.save_dir is not None:
+        if self.hparams.test_viz_save_dir is not None:
             # 四分类
             cnt = 0
             for img, lb, gt in zip(image, label_cls_pred, label_cls_gt):
@@ -404,7 +404,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                     torchvision.utils.save_image(
                         img,
                         os.path.join(
-                            self.hparams.save_dir,
+                            self.hparams.test_viz_save_dir,
                             f'pred_bbps{int(lb)}_gt_bbps{int(gt)}',
                             f'batch_{batch_idx}_{cnt}.png'))
                 cnt += 1
@@ -417,14 +417,14 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                     torchvision.utils.save_image(
                         img,
                         os.path.join(
-                            self.hparams.save_dir,
+                            self.hparams.test_viz_save_dir,
                             f'pred_lq_gt_hq',
                             f'batch_{batch_idx}_{cnt}.png'))
                 elif lb in {2, 3} and gt in {0, 1}:
                     torchvision.utils.save_image(
                         img,
                         os.path.join(
-                            self.hparams.save_dir,
+                            self.hparams.test_viz_save_dir,
                             f'pred_hq_gt_lq',
                             f'batch_{batch_idx}_{cnt}.png'))
                 cnt += 1
