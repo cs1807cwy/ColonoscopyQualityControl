@@ -29,9 +29,9 @@ ckpt_every_n_epochs = 20
 
 # hparams for DataModule
 data_class_path = ColonoscopyMultiLabelDataModule
-data_root = '/mnt/data/cwy/Datasets/UIHNJMuL'
+data_root = 'Datasets/UIHNJMuL'
 # Loc split Ref
-data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/folds/fold0.json'
+data_index_file = 'Datasets/UIHNJMuL/folds/fold0.json'
 sample_weight = {
     'ileocecal': 4800,
     'nofeature': 4800,
@@ -181,6 +181,8 @@ class MultiLabelClassifyLauncher:
 
     def launch(self, stage):
         model = self.get_model()
+        if stage == 'finetune':
+            model = model.load_from_checkpoint(self.ckpt_path)
         if self.compile_model:
             model = torch.compile(model, mode='default')  # mode=['default', 'reduce-overhead', 'max-autotune']
         data = self.get_data()
@@ -191,6 +193,11 @@ class MultiLabelClassifyLauncher:
                 model=model,
                 datamodule=data,
                 ckpt_path=self.ckpt_path
+            )
+        elif stage == 'finetune':
+            trainer.fit(
+                model=model,
+                datamodule=data
             )
         elif stage == 'validate':
             trainer.validate(
@@ -228,8 +235,8 @@ def print_args(parser: Union[str, argparse.ArgumentParser], args: argparse.Names
         args_str = '\n'.join(arg_list)
         print(args_str)
     elif isinstance(parser, argparse.ArgumentParser):
-        default_str_list = ['=' * 20 + ' Specified Args ' + '=' * 20]
-        non_default_str_list = ['=' * 20 + ' Not Default Args ' + '=' * 20]
+        default_str_list = ['=' * 20 + ' Default Args ' + '=' * 20]
+        non_default_str_list = ['=' * 20 + ' Specified Args ' + '=' * 20]
 
         for k, v in args_dict.items():
             default = parser.get_default(k)
@@ -338,7 +345,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # 自定义参数
-    parser.add_argument('-s', '--stage', required=True, choices=['fit', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
+    parser.add_argument('-s', '--stage', required=True, choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
                         help='运行模式：fit-训练(包含训练时验证)，validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true', help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
@@ -391,4 +398,4 @@ if __name__ == '__main__':
     parser.add_argument('-vsd', '--viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
 
     main(parser, parser.parse_args())
-    # nohup python MultiLabelTrain.py -s fit -cm > log/R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000.log &
+    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 192 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &

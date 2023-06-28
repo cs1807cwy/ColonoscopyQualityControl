@@ -1,6 +1,6 @@
 # lightning.pytorch==2.0.1.post0
-# nohup python Main.py fit --config Config/multi_label_classify_config/504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000.yaml > ./log/504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000.log &
-# 504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000
+# nohup python Main.py fit --config Config/multi_label_classify_config/505_finetune504_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch400.yaml > ./log/505_finetune504_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch400.log &
+# 505_finetune504_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch400
 seed_everything: 0
 trainer:
   accelerator: gpu
@@ -12,13 +12,13 @@ trainer:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000"          # note: name of the current experiment
-        version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
+        name: "505_finetune504_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch400"          # note: name of the current experiment
+        version: "tensorboard_finetune_1"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000"          # note: keep the same experiment name
-        version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
+        name: "505_finetune504_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch400"          # note: keep the same experiment name
+        version: "csv_finetune_1"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
       init_args:
@@ -28,9 +28,9 @@ trainer:
         save_last: true # note: save the last.ckpt which contains the latest net weights and optimizer parameters
         monitor: "epoch"
         mode: max
-        every_n_epochs: 20 # note: save .ckpt every n epochs
+        every_n_epochs: 50 # note: save .ckpt every n epochs
         filename: "WMuL_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
-        save_top_k: 50
+        save_top_k: 8
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         monitor: "val_thresh_mean_acc" # note: save .ckpt with the highest val_thresh_mean_acc
@@ -67,7 +67,7 @@ trainer:
         mode: max
         filename: "WMuL_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc_thresh:.4f}"
   fast_dev_run: false
-  max_epochs: 1000
+  max_epochs: 400
   min_epochs: null
   max_steps: -1
   min_steps: null
@@ -97,19 +97,19 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000"
-ckpt_path: null # note: reload from checkpoint
+  default_root_dir: "Experiment/505_finetune504_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch400"
+ckpt_path: "Experiment/504_train_MultiLabelClassifier_ViT_L_patch16_224_cls_epoch1000/tensorboard_train_val/checkpoints/WMuL_best_mAcc_epoch=350_val_thresh_mean_acc=0.9600.ckpt" # note: reload from checkpoint
 data:
   class_path: MultiLabelClassifier.ColonoscopyMultiLabelDataModule
   init_args:
-    data_index_file: "/mnt/data4/cwy/Datasets/UIHNJMuL/cls_folds/fold0.json"
-    data_root: "/mnt/data4/cwy/Datasets/UIHNJMuL"
+    data_index_file: "../Datasets/UIHNJMuL/cls_folds/fold0.json"
+    data_root: "../Datasets/UIHNJMuL"
     sample_weight:
-      nobbps: 1800
-      bbps0: 900
-      bbps1: 900
-      bbps2: 900
-      bbps3: 900
+      nobbps: 600
+      bbps0: 300
+      bbps1: 300
+      bbps2: 2100
+      bbps3: 2100
     resize_shape:
       - 224
       - 224
@@ -119,7 +119,7 @@ data:
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
-    batch_size: 12
+    batch_size: 16
     num_workers: 16
     dry_run: false
 model:
@@ -132,9 +132,9 @@ model:
     attention_lambda: 0.3
     num_classes: 7
     thresh: 0.5
-    batch_size: 12
+    batch_size: 16
     lr: 0.0001
-    epochs: 1000
+    epochs: 400
     momentum: 0.9
     weight_decay: 0.0001
-    cls_weight: 1.0
+    cls_weight: 4.0
