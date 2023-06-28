@@ -237,7 +237,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             if metrics[f'label_{self.index_label[0]}_acc'] > self.outside_acc_thresh \
                and metrics[f'label_{self.index_label[1]}_acc'] > self.nonsense_acc_thresh \
             else 0.
-        metrics[f'label_cleansing_acc_nothresh'] = acc_thresh
+        metrics[f'label_cleansing_acc_nothresh'] = acc_nothresh
         metrics[f'label_cleansing_acc_thresh'] = acc_thresh
 
         # bbps0-1/bbps2-3二分清洁度准确率
