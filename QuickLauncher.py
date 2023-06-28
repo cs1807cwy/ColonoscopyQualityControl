@@ -283,43 +283,43 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
                 monitor='epoch',
                 mode='max',
                 every_n_epochs=args.ckpt_every_n_epochs,  # 每n个epochs保存一个检查点
-                filename='WMuL_{epoch:03d}',
+                filename='MuLModel_{epoch:03d}',
                 save_top_k=args.max_epochs // args.ckpt_every_n_epochs
             ),
             ModelCheckpoint(
                 monitor='val_thresh_mean_acc',
                 mode='max',
-                filename='WMuL_best_mAcc_{epoch:03d}_{val_thresh_mean_acc:.4f}'
+                filename='MuLModel_best_mAcc_{epoch:03d}_{val_thresh_mean_acc:.4f}'
             ),
             ModelCheckpoint(
                 monitor='label_outside_acc',
                 mode='max',
-                filename='WMuL_best_ioAcc_{epoch:03d}_{label_outside_acc:.4f}'
+                filename='MuLModel_best_ioAcc_{epoch:03d}_{label_outside_acc:.4f}'
             ),
             ModelCheckpoint(
                 monitor='label_nonsense_acc',
                 mode='max',
-                filename='WMuL_best_nsAcc_{epoch:03d}_{label_nonsense_acc:.4f}'
+                filename='MuLModel_best_nsAcc_{epoch:03d}_{label_nonsense_acc:.4f}'
             ),
             ModelCheckpoint(
                 monitor='label_ileocecal_acc_thresh',
                 mode='max',
-                filename='WMuL_best_ileoAcc_{epoch:03d}_{label_ileocecal_acc_thresh:.4f}'
+                filename='MuLModel_best_ileoAcc_{epoch:03d}_{label_ileocecal_acc_thresh:.4f}'
             ),
             ModelCheckpoint(
                 monitor='label_ileocecal_prec_thresh',
                 mode='max',
-                filename='WMuL_best_ileoPrec_{epoch:03d}_{label_ileocecal_prec_thresh:.4f}'
+                filename='MuLModel_best_ileoPrec_{epoch:03d}_{label_ileocecal_prec_thresh:.4f}'
             ),
             ModelCheckpoint(
                 monitor='label_cleansing_acc_thresh',
                 mode='max',
-                filename='WMuL_best_cls4Acc_{epoch:03d}_{label_cleansing_acc_thresh:.4f}'
+                filename='MuLModel_best_cls4Acc_{epoch:03d}_{label_cleansing_acc_thresh:.4f}'
             ),
             ModelCheckpoint(
                 monitor='label_cleansing_biclassify_acc_thresh',
                 mode='max',
-                filename='WMuL_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc_thresh:.4f}'
+                filename='MuLModel_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc_thresh:.4f}'
             ),
         ],
         # endregion
@@ -398,4 +398,5 @@ if __name__ == '__main__':
     parser.add_argument('-tvsd', '--test_viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
 
     main(parser, parser.parse_args())
-    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 192 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &
+    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &
+    # nohup python QuickLauncher.py --stage finetune --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --ckpt_path Experiments/R001_train_400/tensorboard_fit/checkpoints/.ckpt --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R002_finetuneR001_400 --version finetune --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 4.0 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R002_finetuneR001_400.log &
