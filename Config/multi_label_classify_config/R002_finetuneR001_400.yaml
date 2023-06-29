@@ -1,5 +1,5 @@
 # lightning.pytorch==2.0.1.post0
-# nohup python Main.py fit --config Config/multi_label_classify_config/R002_finetuneR001_400.yaml > ./log/R002_finetuneR001_400.log &
+# nohup python DeployLauncher.py fit --config Config/multi_label_classify_config/R002_finetuneR001_400.yaml > ./log/R002_finetuneR001_400.log &
 # R002_finetuneR001_400
 seed_everything: 0
 trainer:
@@ -28,7 +28,7 @@ trainer:
         save_last: true # note: save the last.ckpt which contains the latest net weights and optimizer parameters
         monitor: "epoch"
         mode: max
-        every_n_epochs: 20 # note: save .ckpt every n epochs
+        every_n_epochs: 50 # note: save .ckpt every n epochs
         filename: "MuLModel_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
         save_top_k: 8
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
@@ -107,8 +107,8 @@ data:
     sample_weight:
       ileocecal: 4800
       nofeature: 4800
-      nonsense: 480
-      outside: 96
+      nonsense: 0
+      outside: 0
     resize_shape:
       - 224
       - 224
@@ -132,11 +132,11 @@ model:
     num_classes: 7
     thresh: 0.5
     batch_size: 48
-    lr: 0.001
+    lr: 0.00001
     epochs: 400
     momentum: 0.9
     weight_decay: 0.0001
-    cls_weight: 4.0
+    cls_weight: 10.0
     outside_acc_thresh: 0.9
     nonsense_acc_thresh: 0.9
     test_viz_save_dir: "Experiment/R002_finetuneR001_400/test_viz"

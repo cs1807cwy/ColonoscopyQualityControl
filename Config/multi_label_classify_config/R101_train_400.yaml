@@ -1,11 +1,11 @@
 # lightning.pytorch==2.0.1.post0
-# nohup python Main.py fit --config Config/multi_label_classify_config/R101_train_400.yaml > ./log/R101_train_400.log &
+# nohup python DeployLauncher.py fit --config Config/multi_label_classify_config/R101_train_400.yaml > ./log/R101_train_400.log &
 # R101_train_400
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 5, 6, 7, 8 ]
+  devices: [ 1, 2, 7, 8 ]
   num_nodes: 1
   precision: 32-true
   logger:
@@ -28,7 +28,7 @@ trainer:
         save_last: true # note: save the last.ckpt which contains the latest net weights and optimizer parameters
         monitor: "epoch"
         mode: max
-        every_n_epochs: 20 # note: save .ckpt every n epochs
+        every_n_epochs: 50 # note: save .ckpt every n epochs
         filename: "MuLModel_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
         save_top_k: 8
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
@@ -105,11 +105,11 @@ data:
     data_index_file: "../Datasets/UIHNJMuL/cls_folds/fold0.json"
     data_root: "../Datasets/UIHNJMuL"
     sample_weight:
-      nobbps: 600
-      bbps0: 300
-      bbps1: 300
-      bbps2: 2100
-      bbps3: 2100
+      nobbps: 1800
+      bbps0: 900
+      bbps1: 900
+      bbps2: 6300
+      bbps3: 6300
     resize_shape:
       - 224
       - 224
@@ -133,7 +133,7 @@ model:
     num_classes: 7
     thresh: 0.5
     batch_size: 16
-    lr: 0.001
+    lr: 0.0001
     epochs: 400
     momentum: 0.9
     weight_decay: 0.0001

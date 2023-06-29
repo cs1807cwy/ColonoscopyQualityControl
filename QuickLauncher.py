@@ -182,7 +182,23 @@ class MultiLabelClassifyLauncher:
     def launch(self, stage):
         model = self.get_model()
         if stage == 'finetune':
-            model = model.load_from_checkpoint(self.ckpt_path)
+            model = model.load_from_checkpoint(
+                self.ckpt_path,
+                input_shape=self.input_shape,
+                num_heads=self.num_heads,
+                attention_lambda=self.attention_lambda,
+                num_classes=self.num_classes,
+                thresh=self.thresh,
+                batch_size=self.batch_size,
+                lr=self.lr,
+                epochs=self.epochs,
+                momentum=self.momentum,
+                weight_decay=self.weight_decay,
+                cls_weight=self.cls_weight,
+                outside_acc_thresh=self.outside_acc_thresh,
+                nonsense_acc_thresh=self.nonsense_acc_thresh,
+                test_viz_save_dir=self.test_viz_save_dir
+            )
         if self.compile_model:
             model = torch.compile(model, mode='default')  # mode=['default', 'reduce-overhead', 'max-autotune']
         data = self.get_data()
@@ -399,4 +415,4 @@ if __name__ == '__main__':
 
     main(parser, parser.parse_args())
     # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &
-    # nohup python QuickLauncher.py --stage finetune --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --ckpt_path Experiments/R001_train_400/tensorboard_fit/checkpoints/.ckpt --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R002_finetuneR001_400 --version finetune --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 4.0 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R002_finetuneR001_400.log &
+    # nohup python QuickLauncher.py --stage finetune --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --ckpt_path Experiment/R001_train_400/tensorboard_fit/checkpoints/last.ckpt --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R002_finetuneR001_400 --version finetune --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 0 0 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.00001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 10.0 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R002_finetuneR001_400.log &
