@@ -117,6 +117,7 @@ class MultiLabelClassifyLauncher:
         self.cls_weight = args.cls_weight
         self.outside_acc_thresh = args.outside_acc_thresh
         self.nonsense_acc_thresh = args.nonsense_acc_thresh
+        self.test_id_map_file_path = args.test_id_map_file_path
         self.test_viz_save_dir = args.test_viz_save_dir
 
         # global settings
@@ -174,6 +175,8 @@ class MultiLabelClassifyLauncher:
             weight_decay=self.weight_decay,
             cls_weight=self.cls_weight,
             outside_acc_thresh=self.outside_acc_thresh,
+            data_root=self.data_root,
+            test_id_map_file_path=self.test_id_map_file_path,
             nonsense_acc_thresh=self.nonsense_acc_thresh,
             test_viz_save_dir=self.test_viz_save_dir
         )
@@ -197,6 +200,8 @@ class MultiLabelClassifyLauncher:
                 cls_weight=self.cls_weight,
                 outside_acc_thresh=self.outside_acc_thresh,
                 nonsense_acc_thresh=self.nonsense_acc_thresh,
+                data_root=self.data_root,
+                test_id_map_file_path=self.test_id_map_file_path,
                 test_viz_save_dir=self.test_viz_save_dir
             )
         if self.compile_model:
@@ -411,6 +416,8 @@ if __name__ == '__main__':
     parser.add_argument('-cw', '--cls_weight', type=float, default=cls_weight, help='清洁度损失权重')
     parser.add_argument('-oat', '--outside_acc_thresh', type=float, default=outside_acc_thresh, help='outside性能筛选线')
     parser.add_argument('-nat', '--nonsense_acc_thresh', type=float, default=nonsense_acc_thresh, help='nonsense性能筛选线')
+    parser.add_argument('-timfp', '--test_id_map_file_path', default=None,
+                        help='测试输出时所使用的数据集索引文件，使用其中的图像标识码-路径映射表，置空时输出模型输入图像，有效时输出索引到的原始图像')
     parser.add_argument('-tvsd', '--test_viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
 
     main(parser, parser.parse_args())

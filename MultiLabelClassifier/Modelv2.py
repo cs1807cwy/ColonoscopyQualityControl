@@ -1,4 +1,7 @@
+import json
 import os
+import shutil
+
 import math
 import torch
 import numpy as np
@@ -27,6 +30,8 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             cls_weight: float = 4.,
             outside_acc_thresh: float = 0.9,
             nonsense_acc_thresh: float = 0.9,
+            data_root: str = None,
+            test_id_map_file_path: str = None,
             test_viz_save_dir: str = 'test_viz',
     ):
         super().__init__()
@@ -51,6 +56,8 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.outside_acc_thresh = outside_acc_thresh
         self.nonsense_acc_thresh = nonsense_acc_thresh
         self.confuse_matrix: Dict = {}
+
+        self.idmap = None
 
     def forward(self, feature):
         feature = self.backbone(feature)
@@ -268,6 +275,10 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.log_dict(metrics, logger=True, sync_dist=True)
 
     def on_test_epoch_start(self):
+        if self.hparams.test_id_map_file_path is not None:
+            with open(self.hparams.test_id_map_file_path, 'r') as fp:
+                self.idmap: Dict[str, str] = json.load(fp)['idmap']
+
         self.confuse_matrix: Dict[str, float] = {}
         for i in range(3):
             self.confuse_matrix[f'label_{self.index_label[i]}_TP'] = 0.
@@ -291,12 +302,13 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
             os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_nofeature_gt_ileocecal'), exist_ok=True)
             for i in range(0, 4):  # i: predict
                 for j in range(0, 4):  # j: gt
-                    os.makedirs(os.path.join(self.hparams.test_viz_save_dir, f'pred_bbps{i}_gt_bbps{j}'), exist_ok=True)
+                    if i != j:
+                        os.makedirs(os.path.join(self.hparams.test_viz_save_dir, f'pred_bbps{i}_gt_bbps{j}'), exist_ok=True)
             os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_lq_gt_hq'), exist_ok=True)
             os.makedirs(os.path.join(self.hparams.test_viz_save_dir, 'pred_hq_gt_lq'), exist_ok=True)
 
     def test_step(self, batch, batch_idx: int):
-        image, label_gt = batch
+        image_id, image, label_gt = batch
         logit = F.sigmoid(self(image))
 
         # 计算test_acc
@@ -321,14 +333,22 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # 保存体内外分类错误的帧
         if self.hparams.test_viz_save_dir is not None:
             cnt = 0
-            for img, lb, gt in zip(image, label_in_out_pred, label_in_out_gt):
+            for iid, img, lb, gt in zip(image_id, image, label_in_out_pred, label_in_out_gt):
                 if lb != gt:
-                    torchvision.utils.save_image(
-                        img,
-                        os.path.join(
-                            self.hparams.test_viz_save_dir,
-                            'pred_outside_gt_inside' if lb else 'pred_inside_gt_outside',
-                            f'batch_{batch_idx}_{cnt}.png'))
+                    dir_path: str = os.path.join(
+                        self.hparams.test_viz_save_dir,
+                        'pred_outside_gt_inside' if lb else 'pred_inside_gt_outside'
+                    )
+                    if self.idmap is None:
+                        torchvision.utils.save_image(
+                            img,
+                            os.path.join(dir_path, f'batch_{batch_idx}_{cnt}.png'))
+                    else:
+                        path: str = os.path.join(self.hparams.data_root, self.idmap[str(int(iid.cpu()))])
+                        shutil.copyfile(
+                            path,
+                            os.path.join(dir_path, os.path.basename(path))
+                        )
                 cnt += 1
 
         # 帧质量logit: FloatTensor[B]
@@ -348,14 +368,22 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # 保存帧质量分类错误的帧
         if self.hparams.test_viz_save_dir is not None:
             cnt = 0
-            for img, lb, gt in zip(image, label_nonsense_pred, label_nonsense_gt):
-                if lb != gt:
-                    torchvision.utils.save_image(
-                        img,
-                        os.path.join(
-                            self.hparams.test_viz_save_dir,
-                            'pred_nonsense_gt_fine' if lb else 'pred_fine_gt_nonsense',
-                            f'batch_{batch_idx}_{cnt}.png'))
+            for iid, img, fg, lb, gt in zip(image_id, image, flag, label_nonsense_pred, label_nonsense_gt):
+                if fg and (lb != gt):
+                    dir_path: str = os.path.join(
+                        self.hparams.test_viz_save_dir,
+                        'pred_nonsense_gt_fine' if lb else 'pred_fine_gt_nonsense'
+                    )
+                    if self.idmap is None:
+                        torchvision.utils.save_image(
+                            img,
+                            os.path.join(dir_path, f'batch_{batch_idx}_{cnt}.png'))
+                    else:
+                        path: str = os.path.join(self.hparams.data_root, self.idmap[str(int(iid.cpu()))])
+                        shutil.copyfile(
+                            path,
+                            os.path.join(dir_path, os.path.basename(path))
+                        )
                 cnt += 1
 
         # 回盲部logit: FloatTensor[B]
@@ -373,14 +401,22 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # 保存回盲部分类错误的帧
         if self.hparams.test_viz_save_dir is not None:
             cnt = 0
-            for img, lb, gt in zip(image, label_ileo_pred, label_ileo_gt):
-                if lb != gt:
-                    torchvision.utils.save_image(
-                        img,
-                        os.path.join(
-                            self.hparams.test_viz_save_dir,
-                            'pred_ileocecal_gt_nofeature' if lb else 'pred_nofeature_gt_ileocecal',
-                            f'batch_{batch_idx}_{cnt}.png'))
+            for iid, img, fg, lb, gt in zip(image_id, image, flag, label_ileo_pred, label_ileo_gt):
+                if fg and (lb != gt):
+                    dir_path: str = os.path.join(
+                        self.hparams.test_viz_save_dir,
+                        'pred_ileocecal_gt_nofeature' if lb else 'pred_nofeature_gt_ileocecal'
+                    )
+                    if self.idmap is None:
+                        torchvision.utils.save_image(
+                            img,
+                            os.path.join(dir_path, f'batch_{batch_idx}_{cnt}.png'))
+                    else:
+                        path: str = os.path.join(self.hparams.data_root, self.idmap[str(int(iid.cpu()))])
+                        shutil.copyfile(
+                            path,
+                            os.path.join(dir_path, os.path.basename(path))
+                        )
                 cnt += 1
 
         # 清洁度logit: FloatTensor[B, 4]
@@ -399,34 +435,59 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         if self.hparams.test_viz_save_dir is not None:
             # 四分类
             cnt = 0
-            for img, lb, gt in zip(image, label_cls_pred, label_cls_gt):
-                if lb != gt:
-                    torchvision.utils.save_image(
-                        img,
-                        os.path.join(
-                            self.hparams.test_viz_save_dir,
-                            f'pred_bbps{int(lb)}_gt_bbps{int(gt)}',
-                            f'batch_{batch_idx}_{cnt}.png'))
+            for iid, img, fg, lb, gt in zip(image_id, image, flag, label_cls_pred, label_cls_gt):
+                if fg and (lb != gt):
+                    dir_path: str = os.path.join(
+                        self.hparams.test_viz_save_dir,
+                        f'pred_bbps{int(lb)}_gt_bbps{int(gt)}',
+                    )
+                    if self.idmap is None:
+                        torchvision.utils.save_image(
+                            img,
+                            os.path.join(dir_path, f'batch_{batch_idx}_{cnt}.png'))
+                    else:
+                        path: str = os.path.join(self.hparams.data_root, self.idmap[str(int(iid.cpu()))])
+                        shutil.copyfile(
+                            path,
+                            os.path.join(dir_path, os.path.basename(path))
+                        )
                 cnt += 1
             # 二分类
             cnt = 0
-            for img, lb, gt in zip(image, label_cls_pred, label_cls_gt):
+            for iid, img, fg, lb, gt in zip(image_id, image, flag, label_cls_pred, label_cls_gt):
+                if not fg: continue
                 lb = int(lb)
                 gt = int(gt)
                 if lb in {0, 1} and gt in {2, 3}:
-                    torchvision.utils.save_image(
-                        img,
-                        os.path.join(
-                            self.hparams.test_viz_save_dir,
-                            f'pred_lq_gt_hq',
-                            f'batch_{batch_idx}_{cnt}.png'))
+                    dir_path: str = os.path.join(
+                        self.hparams.test_viz_save_dir,
+                        f'pred_lq_gt_hq',
+                    )
+                    if self.idmap is None:
+                        torchvision.utils.save_image(
+                            img,
+                            os.path.join(dir_path, f'batch_{batch_idx}_{cnt}.png'))
+                    else:
+                        path: str = os.path.join(self.hparams.data_root, self.idmap[str(int(iid.cpu()))])
+                        shutil.copyfile(
+                            path,
+                            os.path.join(dir_path, os.path.basename(path))
+                        )
                 elif lb in {2, 3} and gt in {0, 1}:
-                    torchvision.utils.save_image(
-                        img,
-                        os.path.join(
-                            self.hparams.test_viz_save_dir,
-                            f'pred_hq_gt_lq',
-                            f'batch_{batch_idx}_{cnt}.png'))
+                    dir_path: str = os.path.join(
+                        self.hparams.test_viz_save_dir,
+                        f'pred_hq_gt_lq',
+                    )
+                    if self.idmap is None:
+                        torchvision.utils.save_image(
+                            img,
+                            os.path.join(dir_path, f'batch_{batch_idx}_{cnt}.png'))
+                    else:
+                        path: str = os.path.join(self.hparams.data_root, self.idmap[str(int(iid.cpu()))])
+                        shutil.copyfile(
+                            path,
+                            os.path.join(dir_path, os.path.basename(path))
+                        )
                 cnt += 1
 
     def on_test_epoch_end(self):

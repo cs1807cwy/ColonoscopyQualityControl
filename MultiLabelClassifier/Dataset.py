@@ -37,22 +37,22 @@ class ColonoscopyMultiLabelDataset(Dataset):
             train: {
               ileocecal:
               {
-                ./ileocecal_xxxxxx.png: [0., 0., 1., 0., 0., 0., 1.]
+                ./ileocecal_xxxxxx.png: (id 0, code [0., 0., 1., 0., 0., 0., 1.])
                 ...
               }
               nofeature:
               {
-                ../some_dataset/nofeature_xxxxxx.png: [0., 0., 0., 0., 1., 0., 0.]
+                ../some_dataset/nofeature_xxxxxx.png: (id 1, code [0., 0., 0., 0., 1., 0., 0.])
                 ...
               }
               nonsense:
               {
-                ../some_dataset/nonsense_xxxxxx.png: [0., 1., 0., 0., 0., 0., 0.]
+                ../some_dataset/nonsense_xxxxxx.png: (id 2, code [0., 1., 0., 0., 0., 0., 0.])
                 ...
               }
               outside:
               {
-                C:/some_dataset/outside_xxxxxx.png: [1., 0., 0., 0., 0., 0., 0.]
+                C:/some_dataset/outside_xxxxxx.png: (id 3, code [1., 0., 0., 0., 0., 0., 0.])
                 ...
               }
             }
@@ -198,7 +198,9 @@ class ColonoscopyMultiLabelDataset(Dataset):
             self.count += 1
 
         subset_key, inner_index = self.index_map[idx]
-        image_path, label_code = self.index_content[subset_key][inner_index]
+        image_path, id_code = self.index_content[subset_key][inner_index]
+        image_id, label_code = id_code
+
         if not osp.isabs(image_path):
             image_path = osp.abspath(osp.join(self.data_root, image_path))
         label_code_ts: torch.Tensor = torch.from_numpy(np.array(label_code, dtype=np.float32))
@@ -215,10 +217,15 @@ class ColonoscopyMultiLabelDataset(Dataset):
                 else:
                     label.append('nil')
             return label_code_ts, label, subset_key, image_path
+        elif self.for_test:
+            image: Image.Image = Image.open(image_path).convert('RGB')
+            item: torch.Tensor = self.transform_validation(image)
+            return image_id, item, label_code_ts
         else:
             image: Image.Image = Image.open(image_path).convert('RGB')
             item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(image)
             return item, label_code_ts
+
 
     def __len__(self) -> int:
         return self.sample_per_epoch
