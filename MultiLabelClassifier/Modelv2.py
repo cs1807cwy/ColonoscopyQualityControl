@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import time
 
 import math
 import torch
@@ -58,6 +59,8 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.confuse_matrix: Dict = {}
 
         self.idmap = None
+        self.fps_timer = None
+        self.count = None
 
     def forward(self, feature):
         feature = self.backbone(feature)
@@ -275,6 +278,10 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         self.log_dict(metrics, logger=True, sync_dist=True)
 
     def on_test_epoch_start(self):
+        # 启动计时
+        self.fps_timer = time.perf_counter()
+        self.count = 0
+
         if self.hparams.test_id_map_file_path is not None:
             with open(self.hparams.test_id_map_file_path, 'r') as fp:
                 self.idmap: Dict[str, str] = json.load(fp)['idmap']
@@ -310,6 +317,8 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
     def test_step(self, batch, batch_idx: int):
         image_id, image, label_gt = batch
         logit = F.sigmoid(self(image))
+
+        self.count += image_id.size(0)
 
         # 计算test_acc
         # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
@@ -546,6 +555,9 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
 
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
         self.log_dict(metrics, logger=True, sync_dist=True)
+
+        # 终止计时，计算FPS
+        self.log('mean_fps', float(self.count) / (time.perf_counter() - self.fps_timer), prog_bar=True, logger=True, sync_dist=True)
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         image = batch  # x是图像tensor，ox是原始图像tensor
