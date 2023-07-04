@@ -559,9 +559,16 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # 终止计时，计算FPS
         self.log('mean_fps', float(self.count) / (time.perf_counter() - self.fps_timer), prog_bar=True, logger=True, sync_dist=True)
 
+    def on_predict_epoch_start(self):
+        # 启动计时
+        self.fps_timer = time.perf_counter()
+        self.count = 0
+
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         image = batch  # x是图像tensor，ox是原始图像tensor
         logit = F.sigmoid(self(image))
+
+        self.count += image.size(0)
 
         # 体内外logit: FloatTensor[B]
         in_out_logit = logit[:, 0]
@@ -596,6 +603,15 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
                 label_ileo_pred.unsqueeze(1),
                 label_cls_code_pred
             ],
-            dim=-1).float().cpu()
+            dim=-1).float()
+
+        # for DEBUG
+        # for idx, cont in enumerate(zip(logit.cpu(), label_pred.cpu())):
+        #     lg, lp = cont
+        #     print(f'Dataset {dataloader_idx} | Batch {batch_idx} | Sample {idx}: Logit {lg.tolist()} | Label {lp.tolist()}')
 
         return logit, label_pred
+
+    def on_predict_epoch_end(self):
+        # 终止计时，计算FPS
+        print(f'FPS: {float(self.count) / (time.perf_counter() - self.fps_timer)}')

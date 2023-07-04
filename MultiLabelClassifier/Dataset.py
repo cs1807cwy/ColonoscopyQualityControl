@@ -275,7 +275,7 @@ class ColonoscopyMultiLabelPredictDataset(Dataset):
                  # 数据目录
                  data_root_dir: str,
                  ext: List[str] = ('png', 'jpg'),
-                 resize_shape: Tuple[int, int] = (268, 268),
+                 resize_shape: Tuple[int, int] = (224, 224),
                  center_crop_shape: Tuple[int, int] = (224, 224)
                  ):
         """
