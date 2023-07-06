@@ -15,3 +15,12 @@ class ViT_L_Patch16_224_Extractor(nn.Module):
 
     def forward(self, x):
         return self.main_module(x)
+
+
+class ViT_L_Patch14_336_Extractor(nn.Module):
+    def __init__(self, pretrained: bool):
+        super(ViT_L_Patch14_336_Extractor, self).__init__()
+        self.main_module = timm.create_model('vit_large_patch14_clip_336.openai_ft_in12k_in1k', pretrained=pretrained, num_classes=0, global_pool='')
+
+    def forward(self, x):
+        return self.main_module(x)

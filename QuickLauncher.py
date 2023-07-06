@@ -1,3 +1,4 @@
+import os
 import warnings
 import os.path as osp
 
@@ -184,7 +185,7 @@ class MultiLabelClassifyLauncher:
 
     def launch(self, stage):
         model = self.get_model()
-        if stage == 'finetune':
+        if stage in {'finetune', 'export_model'}:
             model = model.load_from_checkpoint(
                 self.ckpt_path,
                 input_shape=self.input_shape,
@@ -240,9 +241,13 @@ class MultiLabelClassifyLauncher:
             )
         elif stage == 'export_model':
             if self.model_save_path is not None:
-                script = model.to_torchscript()
+                os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
                 # save for use in production environment
-                torch.jit.save(script, self.model_save_path)
+                script: torch.ScriptModule = model.to_torchscript(self.model_save_path, method='script')
+                print(script.code)
+                print(script.forward_activate.code)
+                print(script.graph)
+                print(script)
             else:
                 warnings.warn('model_save_path is not specified, abort exporting')
 
