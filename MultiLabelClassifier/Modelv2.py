@@ -38,6 +38,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.thresh = thresh
+        self.input_shape = input_shape
 
         # networks
         self.backbone = ViT_L_Patch16_224_Extractor(True)
@@ -620,6 +621,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
     @torch.jit.export
     def forward_activate(self, batch):
         image = batch
+        image = F.interpolate(image, self.input_shape, mode='bilinear', antialias=True)
         logit = F.sigmoid(self(image))
 
         # 体内外logit: FloatTensor[B]

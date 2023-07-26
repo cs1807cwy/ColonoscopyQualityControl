@@ -37,6 +37,8 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
+        self.thresh = thresh
+        self.input_shape = input_shape
 
         # networks
         self.backbone = ViT_L_Patch14_336_Extractor(True)
@@ -615,3 +617,46 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
     def on_predict_epoch_end(self):
         # 终止计时，计算FPS
         print(f'FPS: {float(self.count) / (time.perf_counter() - self.fps_timer)}')
+
+    @torch.jit.export
+    def forward_activate(self, batch):
+        image = batch
+        image = F.interpolate(image, self.input_shape, mode='bilinear', antialias=True)
+        logit = F.sigmoid(self(image))
+
+        # 体内外logit: FloatTensor[B]
+        in_out_logit = logit[:, 0]
+        # 体内外标签: BoolTensor[B]
+        # outside时为True
+        label_in_out_pred = torch.ge(in_out_logit, self.thresh)
+
+        # 帧质量logit: FloatTensor[B]
+        nonsense_logit = logit[:, 1]
+        # 坏帧标签: BoolTensor[B]
+        # nonsense时为True
+        label_nonsense_pred = ~label_in_out_pred & torch.ge(nonsense_logit, self.thresh)
+
+        # 回盲部logit: FloatTensor[B]
+        ileo_logit = logit[:, 2]
+        # 回盲部标签: BoolTensor[B]
+        label_ileo_pred = ~label_in_out_pred & ~label_nonsense_pred & torch.ge(ileo_logit, self.thresh)
+
+        # 清洁度logit: FloatTensor[B, 4]
+        cls_logit = logit[:, 3:]
+        # 清洁度label: IntTensor[B] (取预测值最大的，但会被outside/nonsense标签抑制)
+        label_cls_pred = torch.argmax(cls_logit, dim=-1)
+        # 清洁度label_code_pred: BoolTensor[B, 4]
+        label_cls_code_pred = (~label_in_out_pred & ~label_nonsense_pred).unsqueeze(1) \
+                              & torch.ge(cls_logit, torch.max(cls_logit, dim=-1)[0].unsqueeze(1))
+
+        # label_pred: FloatTensor[B, 7]
+        label_pred = torch.cat(
+            [
+                label_in_out_pred.unsqueeze(1),
+                label_nonsense_pred.unsqueeze(1),
+                label_ileo_pred.unsqueeze(1),
+                label_cls_code_pred
+            ],
+            dim=-1).float()
+
+        return logit, label_pred

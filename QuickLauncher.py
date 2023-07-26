@@ -10,6 +10,8 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks.progress import TQDMProgressBar
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
+
+import MultiLabelClassifier.Modelv3
 from MultiLabelClassifier import *
 
 # for reproduction
@@ -59,7 +61,7 @@ dry_run = False
 
 # hparams for Module
 model_class_path = MultiLabelClassifier_ViT_L_Patch16_224_Class7
-input_shape = (224, 224)  # 主干网络固定输入规格为(224, 224)，请勿修改！
+input_shape = (224, 224)  # 与center_crop_shape保持一致
 num_heads = 8
 attention_lambda = 0.3
 num_classes = 7
@@ -349,12 +351,11 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
             ),
         ],
         # endregion
-        'data_class_path': data_class_path,
+        'data_class_path': globals()[args.data_class_path],
         'sample_weight': {k: v for k, v in zip(args.sample_weight_key, args.sample_weight_value)},
-        'center_crop_shape': center_crop_shape,
         'dry_run': dry_run,
-        'model_class_path': model_class_path,
-        'input_shape': input_shape,
+        'model_class_path': globals()[args.model_class_path],
+        'input_shape': args.center_crop_shape,
         'num_classes': num_classes,
         'epochs': args.max_epochs,
     })
@@ -396,13 +397,16 @@ if __name__ == '__main__':
     parser.add_argument('-trr', '--tqdm_refresh_rate', type=int, default=20, help='进度条刷新间隔，1表示每个迭代轮次进行一次刷新')
 
     # 数据装载器参数
+    parser.add_argument('-mcp', '--data_class_path', default=ColonoscopyMultiLabelDataModule, help='数据模型类路径')
     parser.add_argument('-dif', '--data_index_file', default=data_index_file, help='数据集索引文件')
     parser.add_argument('-dr', '--data_root', default=data_root, help='数据集根路径')
     parser.add_argument('-swk', '--sample_weight_key', nargs='+', default=list(sample_weight.keys()), help='重采样数据子集列表')
     parser.add_argument('-swv', '--sample_weight_value', type=int, nargs='+', default=list(sample_weight.values()),
                         help='重采样数量列表(与sample_weight_key一一对应)')
     parser.add_argument('-rs', '--resize_shape', type=int, nargs=2, default=resize_shape,
-                        help='预处理时缩放图像目标规格，可用于裁去边缘（注：只有中心(224, 224)区域进入网络，以匹配主干网络的输入规格）')
+                        help='预处理时缩放图像目标规格；格式：(H, W)')
+    parser.add_argument('-rs', '--center_crop_shape', type=int, nargs=2, default=center_crop_shape,
+                        help='中心裁剪规格，配合resize_shape使用可裁去边缘；格式：(H, W)（注：只有中心(H, W)区域进入网络，以匹配主干网络的输入规格）')
     parser.add_argument('-bj', '--brightness_jitter', type=float, default=brightness_jitter,
                         help='标准化亮度泛化域宽，[max(0, 1 - brightness), 1 + brightness]')
     parser.add_argument('-cj', '--contrast_jitter', type=float, default=contrast_jitter,
@@ -412,6 +416,7 @@ if __name__ == '__main__':
     parser.add_argument('-nw', '--num_workers', type=int, default=num_workers, help='数据装载线程数')
 
     # 网络模型参数
+    parser.add_argument('-mcp', '--model_class_path', default=MultiLabelClassifier_ViT_L_Patch16_224_Class7, help='网络模型类路径')
     parser.add_argument('-nh', '--num_heads', type=int, default=num_heads, choices=[1, 2, 4, 6, 8], help='输出头（不同温度T）数量')
     parser.add_argument('-al', '--attention_lambda', type=float, default=attention_lambda, help='输出头类特征权重')
     parser.add_argument('-thr', '--thresh', type=float, default=thresh, help='逐类标签置信度阈值')
@@ -427,4 +432,3 @@ if __name__ == '__main__':
 
     main(parser, parser.parse_args())
     # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &
-    # nohup python QuickLauncher.py --stage finetune --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --ckpt_path Experiment/R001_train_400/tensorboard_fit/checkpoints/last.ckpt --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R002_finetuneR001_400 --version finetune --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 0 0 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.00001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 10.0 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R002_finetuneR001_400.log &

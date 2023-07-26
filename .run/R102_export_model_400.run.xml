@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/QuickLauncher.py" />
-    <option name="PARAMETERS" value="--stage export_model --model_save_path Export/R101_MuLModel_best_cls4Acc_epoch=099_label_cleansing_acc_thresh=0.8839.pt --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R101_train_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=099_label_cleansing_acc_thresh=0.8839.ckpt --accelerator gpu --strategy ddp --devices 4 --num_heads 8 --attention_lambda 0.3" />
+    <option name="PARAMETERS" value="--stage export_model --model_save_path Export/R101_MuLModel_best_cls4Acc_epoch=099_label_cleansing_acc_thresh=0.8839.ths --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R101_train_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=099_label_cleansing_acc_thresh=0.8839.ckpt --accelerator gpu --strategy ddp --devices 4 --num_heads 8 --attention_lambda 0.3" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
