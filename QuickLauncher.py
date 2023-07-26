@@ -445,4 +445,12 @@ if __name__ == '__main__':
     parser.add_argument('-tvsd', '--test_viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
 
     main(parser, parser.parse_args())
+
+    # Remote Train CMD Refs:
+
+    # 2 RTX 3090 ti
     # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &
+
+    # 4 GTX 1080 ti
+    # R103_train_vitp14s336c7_400
+    # nohup python QuickLauncher.py --stage fit --seed_everything 0 --max_epochs 400 --batch_size 4 --accelerator gpu --strategy ddp --devices 1 2 3 4 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R103_train_vitp14s336c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 1500 1200 1200 4800 4800 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R103_train_vitp14s336c7_400.log &
