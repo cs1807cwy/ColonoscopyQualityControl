@@ -1,6 +1,7 @@
 import os
 import warnings
 import os.path as osp
+import importlib
 
 import torch
 import lightning
@@ -23,18 +24,18 @@ torch.set_float32_matmul_precision('high')
 # hparams for Trainer
 accelerator = 'gpu'
 strategy = 'ddp'
-devices = [2, 3]
-max_epochs = 1000
+devices = [0, 1, 2, 3]
+max_epochs = 400
 check_val_every_n_epoch = 1
 log_every_n_steps = 10
 experiment_name = 'R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
 ckpt_every_n_epochs = 20
 
 # hparams for DataModule
-data_class_path = ColonoscopyMultiLabelDataModule
-data_root = 'Datasets/UIHNJMuL'
+data_class_path = 'ColonoscopyMultiLabelDataModule'
+data_root = 'Datasets/UIHNJMuLv3'
 # Loc split Ref
-data_index_file = 'Datasets/UIHNJMuL/folds/fold0.json'
+data_index_file = 'Datasets/UIHNJMuLv3/folds/fold0.json'
 sample_weight = {
     'ileocecal': 4800,
     'nofeature': 4800,
@@ -42,7 +43,7 @@ sample_weight = {
     'outside': 96,
 }
 # cleansing split Ref
-# data_index_file = '/mnt/data/cwy/Datasets/UIHNJMuL/cls_folds/fold0.json'
+# data_index_file = '/mnt/data/cwy/Datasets/UIHNJv3MuL/cls_folds/fold0.json'
 # sample_weight = {
 #     'nobbps': 600,
 #     'bbps0': 300,
@@ -55,12 +56,12 @@ center_crop_shape = (224, 224)
 brightness_jitter = 0.8
 contrast_jitter = 0.8
 saturation_jitter = 0.8
-batch_size = 48
+batch_size = 16
 num_workers = 16
 dry_run = False
 
 # hparams for Module
-model_class_path = MultiLabelClassifier_ViT_L_Patch16_224_Class7
+model_class_path = 'MultiLabelClassifier_ViT_L_Patch16_224_Class7'
 input_shape = (224, 224)  # 与center_crop_shape保持一致
 num_heads = 8
 attention_lambda = 0.3
@@ -70,7 +71,7 @@ lr = 0.0001
 epochs = max_epochs
 momentum = 0.9
 weight_decay = 0.0001
-cls_weight = 1.0
+cls_weight = 0.2
 outside_acc_thresh = 0.9
 nonsense_acc_thresh = 0.9
 
@@ -165,7 +166,7 @@ class MultiLabelClassifyLauncher:
         return data
 
     def get_model(self) -> LightningModule:
-        model = model_class_path(
+        model = self.model_class_path(
             input_shape=self.input_shape,
             num_heads=self.num_heads,
             attention_lambda=self.attention_lambda,
@@ -283,6 +284,19 @@ def print_args(parser: Union[str, argparse.ArgumentParser], args: argparse.Names
     print('-' * 60)
 
 
+def get_class(module_name: str, class_name: str):
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
+def get_class_one_exp(module_class_name: str):
+    head, ext = osp.splitext(module_class_name)
+    if ext == '':
+        return globals()[head]
+    else:
+        return get_class(head, ext[1:])
+
+
 def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
     print_args(parser, args, only_non_defaut=False)
 
@@ -351,10 +365,10 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
             ),
         ],
         # endregion
-        'data_class_path': globals()[args.data_class_path],
+        'data_class_path': get_class_one_exp(args.data_class_path),
         'sample_weight': {k: v for k, v in zip(args.sample_weight_key, args.sample_weight_value)},
         'dry_run': dry_run,
-        'model_class_path': globals()[args.model_class_path],
+        'model_class_path': get_class_one_exp(args.model_class_path),
         'input_shape': args.center_crop_shape,
         'num_classes': num_classes,
         'epochs': args.max_epochs,
@@ -397,7 +411,7 @@ if __name__ == '__main__':
     parser.add_argument('-trr', '--tqdm_refresh_rate', type=int, default=20, help='进度条刷新间隔，1表示每个迭代轮次进行一次刷新')
 
     # 数据装载器参数
-    parser.add_argument('-mcp', '--data_class_path', default=ColonoscopyMultiLabelDataModule, help='数据模型类路径')
+    parser.add_argument('-dcp', '--data_class_path', default=data_class_path, help='数据模型类路径')
     parser.add_argument('-dif', '--data_index_file', default=data_index_file, help='数据集索引文件')
     parser.add_argument('-dr', '--data_root', default=data_root, help='数据集根路径')
     parser.add_argument('-swk', '--sample_weight_key', nargs='+', default=list(sample_weight.keys()), help='重采样数据子集列表')
@@ -405,7 +419,7 @@ if __name__ == '__main__':
                         help='重采样数量列表(与sample_weight_key一一对应)')
     parser.add_argument('-rs', '--resize_shape', type=int, nargs=2, default=resize_shape,
                         help='预处理时缩放图像目标规格；格式：(H, W)')
-    parser.add_argument('-rs', '--center_crop_shape', type=int, nargs=2, default=center_crop_shape,
+    parser.add_argument('-ccs', '--center_crop_shape', type=int, nargs=2, default=center_crop_shape,
                         help='中心裁剪规格，配合resize_shape使用可裁去边缘；格式：(H, W)（注：只有中心(H, W)区域进入网络，以匹配主干网络的输入规格）')
     parser.add_argument('-bj', '--brightness_jitter', type=float, default=brightness_jitter,
                         help='标准化亮度泛化域宽，[max(0, 1 - brightness), 1 + brightness]')
@@ -416,7 +430,7 @@ if __name__ == '__main__':
     parser.add_argument('-nw', '--num_workers', type=int, default=num_workers, help='数据装载线程数')
 
     # 网络模型参数
-    parser.add_argument('-mcp', '--model_class_path', default=MultiLabelClassifier_ViT_L_Patch16_224_Class7, help='网络模型类路径')
+    parser.add_argument('-mcp', '--model_class_path', default=model_class_path, help='网络模型类路径')
     parser.add_argument('-nh', '--num_heads', type=int, default=num_heads, choices=[1, 2, 4, 6, 8], help='输出头（不同温度T）数量')
     parser.add_argument('-al', '--attention_lambda', type=float, default=attention_lambda, help='输出头类特征权重')
     parser.add_argument('-thr', '--thresh', type=float, default=thresh, help='逐类标签置信度阈值')
