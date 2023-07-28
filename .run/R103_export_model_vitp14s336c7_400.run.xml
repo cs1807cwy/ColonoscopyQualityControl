@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/QuickLauncher.py" />
-    <option name="PARAMETERS" value="--stage export_model --model_save_path Export/R103_vitp14s336c7_400_MuLModel_best_cls4Acc_epoch=026_label_cleansing_acc_thresh=0.9691.ths --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R103_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=026_label_cleansing_acc_thresh=0.9691.ckpt --accelerator gpu --strategy ddp --devices 2 --center_crop_shape 336 336 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3" />
+    <option name="PARAMETERS" value="--stage export_model --model_save_path Export/R103_vitp14s336c7_400_MuLModel_best_cls4Acc_epoch=026_label_cleansing_acc_thresh=0.9691.ths --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R103_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=026_label_cleansing_acc_thresh=0.9691.ckpt --accelerator gpu --strategy ddp --devices 0 --center_crop_shape 336 336 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

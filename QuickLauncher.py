@@ -191,6 +191,7 @@ class MultiLabelClassifyLauncher:
         if stage in {'finetune', 'export_model'}:
             model = model.load_from_checkpoint(
                 self.ckpt_path,
+                map_location=torch.device('cpu'),
                 input_shape=self.input_shape,
                 num_heads=self.num_heads,
                 attention_lambda=self.attention_lambda,
@@ -247,6 +248,7 @@ class MultiLabelClassifyLauncher:
                 os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
                 # save for use in production environment
                 script: torch.ScriptModule = model.to_torchscript(self.model_save_path, method='script')
+                print(model.device)
                 print(script.code)
                 print(script.forward_activate.code)
                 print(script.graph)
