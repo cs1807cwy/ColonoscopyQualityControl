@@ -388,9 +388,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # 自定义参数
-    parser.add_argument('-s', '--stage', required=True, choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
+    parser.add_argument('-s', '--stage', required=True,
+                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
                         help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
-    parser.add_argument('-cm', '--compile_model', action='store_true', help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
+    parser.add_argument('-cm', '--compile_model', action='store_true',
+                        help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
 
     # 全局控制参数
@@ -400,23 +402,28 @@ if __name__ == '__main__':
     parser.add_argument('-cp', '--ckpt_path', default=None, help='预训练模型路径，置空时不装载')
 
     # 训练器参数
-    parser.add_argument('-acc', '--accelerator', default=accelerator, choices=['cpu', 'gpu', 'tpu', 'ipu', 'auto'], help='加速器')
-    parser.add_argument('-str', '--strategy', default=strategy, choices=['ddp', 'ddp_spawn', 'ddp_notebook'], help='运行策略')
+    parser.add_argument('-acc', '--accelerator', default=accelerator, choices=['cpu', 'gpu', 'tpu', 'ipu', 'auto'],
+                        help='加速器')
+    parser.add_argument('-str', '--strategy', default=strategy, choices=['ddp', 'ddp_spawn', 'ddp_notebook'],
+                        help='运行策略')
     parser.add_argument('-dev', '--devices', type=int, nargs='+', default=devices, help='设备号')
     parser.add_argument('-cve', '--check_val_every_n_epoch', type=int, default=check_val_every_n_epoch,
                         help='验证纪元间隔，1表示每个训练纪元运行一次验证流程')
-    parser.add_argument('-ls', '--log_every_n_steps', type=int, default=log_every_n_steps, help='日志记录间隔，1表示每个迭代轮次记录一次日志')
+    parser.add_argument('-ls', '--log_every_n_steps', type=int, default=log_every_n_steps,
+                        help='日志记录间隔，1表示每个迭代轮次记录一次日志')
     parser.add_argument('-en', '--experiment_name', default=experiment_name, help='实验名称，用于生成实验目录')
     parser.add_argument('-ver', '--version', default='v1', help='实验版本号')
     parser.add_argument('-ce', '--ckpt_every_n_epochs', type=int, default=ckpt_every_n_epochs,
                         help='检查点保存间隔，1表示每个训练纪元保存一次检查点')
-    parser.add_argument('-trr', '--tqdm_refresh_rate', type=int, default=20, help='进度条刷新间隔，1表示每个迭代轮次进行一次刷新')
+    parser.add_argument('-trr', '--tqdm_refresh_rate', type=int, default=20,
+                        help='进度条刷新间隔，1表示每个迭代轮次进行一次刷新')
 
     # 数据装载器参数
     parser.add_argument('-dcp', '--data_class_path', default=data_class_path, help='数据模型类路径')
     parser.add_argument('-dif', '--data_index_file', default=data_index_file, help='数据集索引文件')
     parser.add_argument('-dr', '--data_root', default=data_root, help='数据集根路径')
-    parser.add_argument('-swk', '--sample_weight_key', nargs='+', default=list(sample_weight.keys()), help='重采样数据子集列表')
+    parser.add_argument('-swk', '--sample_weight_key', nargs='+', default=list(sample_weight.keys()),
+                        help='重采样数据子集列表')
     parser.add_argument('-swv', '--sample_weight_value', type=int, nargs='+', default=list(sample_weight.values()),
                         help='重采样数量列表(与sample_weight_key一一对应)')
     parser.add_argument('-rs', '--resize_shape', type=int, nargs=2, default=resize_shape,
@@ -433,15 +440,18 @@ if __name__ == '__main__':
 
     # 网络模型参数
     parser.add_argument('-mcp', '--model_class_path', default=model_class_path, help='网络模型类路径')
-    parser.add_argument('-nh', '--num_heads', type=int, default=num_heads, choices=[1, 2, 4, 6, 8], help='输出头（不同温度T）数量')
+    parser.add_argument('-nh', '--num_heads', type=int, default=num_heads, choices=[1, 2, 4, 6, 8],
+                        help='输出头（不同温度T）数量')
     parser.add_argument('-al', '--attention_lambda', type=float, default=attention_lambda, help='输出头类特征权重')
     parser.add_argument('-thr', '--thresh', type=float, default=thresh, help='逐类标签置信度阈值')
     parser.add_argument('-lr', '--lr', type=float, default=lr, help='SGD优化器学习率')
     parser.add_argument('-mom', '--momentum', type=float, default=momentum, help='SGD优化器动量')
     parser.add_argument('-wd', '--weight_decay', type=float, default=weight_decay, help='SGD优化器权重衰退')
     parser.add_argument('-cw', '--cls_weight', type=float, default=cls_weight, help='清洁度损失权重')
-    parser.add_argument('-oat', '--outside_acc_thresh', type=float, default=outside_acc_thresh, help='outside性能筛选线')
-    parser.add_argument('-nat', '--nonsense_acc_thresh', type=float, default=nonsense_acc_thresh, help='nonsense性能筛选线')
+    parser.add_argument('-oat', '--outside_acc_thresh', type=float, default=outside_acc_thresh,
+                        help='outside性能筛选线')
+    parser.add_argument('-nat', '--nonsense_acc_thresh', type=float, default=nonsense_acc_thresh,
+                        help='nonsense性能筛选线')
     parser.add_argument('-timfp', '--test_id_map_file_path', default=None,
                         help='测试输出时所使用的数据集索引文件，使用其中的图像标识码-路径映射表，置空时输出模型输入图像，有效时输出索引到的原始图像')
     parser.add_argument('-tvsd', '--test_viz_save_dir', default=None, help='测试时，分类错误图像的保存目录，置空时不保存')
@@ -450,13 +460,18 @@ if __name__ == '__main__':
 
     # Remote Train CMD Refs:
 
-    # 2 RTX 3090 ti
-    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 48 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R001_train_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_index_file ../Datasets/UIHNJMuL/folds/fold0.json --data_root ../Datasets/UIHNJMuL --sample_weight_key ileocecal nofeature nonsense outside --sample_weight_value 4800 4800 480 96 --resize_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R001_train_400.log &
-
     # R103_train_vitp14s336c7_400
     # 2 RTX 3090 ti
     # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 16 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R103_train_vitp14s336c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R103_train_vitp14s336c7_400.log &
 
+    # R103_test_fps_vitp14s336c7_400
+    # 1 RTX 3090 ti
+    # nohup python QuickLauncher.py --stage test --seed_everything 0 --max_epochs 400 --batch_size 1 --ckpt_path Experiment/R103_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=026_label_cleansing_acc_thresh=0.9691.ckpt --accelerator gpu --strategy ddp --devices 2 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R103_test_fps_vitp14s336c7_400 --version test_fps --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R103_test_fps_vitp14s336c7_400.log &
+
     # R104_train_vitp16s224c7_400
     # 4 GTX 1080 ti
     # nohup python QuickLauncher.py --stage fit --seed_everything 0 --max_epochs 400 --batch_size 12 --accelerator gpu --strategy ddp --devices 1 2 3 4 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R104_train_vitp16s224c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 224 224 --center_crop_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv2.MultiLabelClassifier_ViT_L_Patch16_224_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R104_train_vitp16s224c7_400.log &
+
+    # R104_test_fps_vitp16s224c7_400
+    # 1 GTX 1080 ti
+    # nohup python QuickLauncher.py --stage test --seed_everything 0 --max_epochs 400 --batch_size 1 --ckpt_path Experiment/R104_train_vitp16s224c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=128_label_cleansing_acc_thresh=0.9414.ckpt --accelerator gpu --strategy ddp --devices 1 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R104_test_fps_vitp16s224c7_400 --version test_fps --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 224 224 --center_crop_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv2.MultiLabelClassifier_ViT_L_Patch16_224_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R104_test_fps_vitp16s224c7_400.log &
