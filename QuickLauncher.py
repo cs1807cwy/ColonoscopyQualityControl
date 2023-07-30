@@ -376,8 +376,8 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
         'epochs': args.max_epochs,
     })
 
-    if arg_dict['accelerator'] == 'cpu':
-        arg_dict['device'] = arg_dict['device'][0]
+    if args.accelerator == 'cpu':
+        arg_dict['devices'] = args.devices[0]
 
     args = argparse.Namespace(**arg_dict)
     print_args('Resolved Args', args)
