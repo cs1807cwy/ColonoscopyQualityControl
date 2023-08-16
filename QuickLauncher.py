@@ -388,7 +388,7 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="肠镜多任务质控启动器", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True,
@@ -402,7 +402,7 @@ if __name__ == '__main__':
     parser.add_argument('-se', '--seed_everything', type=int, default=seed_everything, help='随机种子')
     parser.add_argument('-me', '--max_epochs', type=int, default=max_epochs, help='训练纪元总数')
     parser.add_argument('-bs', '--batch_size', type=int, default=batch_size, help='批大小')
-    parser.add_argument('-cp', '--ckpt_path', default=None, help='预训练模型路径，置空时不装载')
+    parser.add_argument('-cp', '--ckpt_path', default=None, help='模型检查点路径，置空时不装载')
 
     # 训练器参数
     parser.add_argument('-acc', '--accelerator', default=accelerator, choices=['cpu', 'gpu', 'tpu', 'ipu', 'auto'],
