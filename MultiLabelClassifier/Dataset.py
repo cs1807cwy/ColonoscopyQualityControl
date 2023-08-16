@@ -87,7 +87,10 @@ class ColonoscopyMultiLabelDataset(Dataset):
             if self.dry_run:
                 print(f'label_code: {self.code_label_map}')
 
-            self.index_content = json_content['validation' if self.for_validation else 'train']
+            if 'test' in json_content and self.for_test:
+                self.index_content = json_content['test']
+            else:
+                self.index_content = json_content['validation' if self.for_validation else 'train']
             for key, val in self.index_content.items():
                 self.index_content[key] = [(k, v) for k, v in val.items()]
 
