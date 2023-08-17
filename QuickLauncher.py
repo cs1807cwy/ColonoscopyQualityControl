@@ -256,7 +256,7 @@ class MultiLabelClassifyLauncher:
                 print(script)
             else:
                 warnings.warn('model_save_path is not specified, abort exporting')
-        elif stage == 'export_model_onnx':
+        elif stage == 'export_model_onnx':  # 存在ONNX不支持的ATen算子（scaled_dot_product_attention），当前无法成功导出
             if self.model_save_path is not None:
                 os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
                 # save for use in production environment
