@@ -43,7 +43,7 @@ class MultiLabelClassifier_ViT_L_Patch16_224_Class7(LightningModule):
         # networks
         self.backbone = ViT_L_Patch16_224_Extractor(True)
         self.classify_head = ClassSpecificMultiHeadAttention(num_heads, attention_lambda, 1024, num_classes)  # embed dim=1024
-        self.example_input_array = [torch.zeros(batch_size, 3, input_shape[0], input_shape[1])]
+        self.example_input_array = torch.zeros(batch_size, 3, input_shape[0], input_shape[1])
 
         # for viz
         self.index_label: Dict[int, str] = {

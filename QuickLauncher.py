@@ -243,16 +243,26 @@ class MultiLabelClassifyLauncher:
                 datamodule=data,
                 ckpt_path=self.ckpt_path
             )
-        elif stage == 'export_model':
+        elif stage == 'export_model_torch_script':
             if self.model_save_path is not None:
                 os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
                 # save for use in production environment
+                model.eval()
                 script: torch.ScriptModule = model.to_torchscript(self.model_save_path, method='script')
                 print(model.device)
                 print(script.code)
                 print(script.forward_activate.code)
                 print(script.graph)
                 print(script)
+            else:
+                warnings.warn('model_save_path is not specified, abort exporting')
+        elif stage == 'export_model_onnx':
+            if self.model_save_path is not None:
+                os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
+                # save for use in production environment
+                model.eval()
+                model.to_onnx(self.model_save_path)
+                print(model.device)
             else:
                 warnings.warn('model_save_path is not specified, abort exporting')
 
@@ -392,8 +402,9 @@ if __name__ == '__main__':
 
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True,
-                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model', 'arg_debug'],
-                        help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，export_model-导出TorchScript模型，arg_debug-仅检查参数')
+                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model_torch_script', 'export_model_onnx', 'arg_debug'],
+                        help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，'
+                             'export_model_torch_script-导出TorchScript模型，export_model_onnx-导出ONNX模型，arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true',
                         help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
@@ -478,3 +489,7 @@ if __name__ == '__main__':
     # R104_test_fps_vitp16s224c7_400
     # 1 GTX 1080 ti
     # nohup python QuickLauncher.py --stage test --seed_everything 0 --max_epochs 400 --batch_size 1 --ckpt_path Experiment/R104_train_vitp16s224c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=128_label_cleansing_acc_thresh=0.9414.ckpt --accelerator gpu --strategy ddp --devices 1 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R104_test_fps_vitp16s224c7_400 --version test_fps --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 224 224 --center_crop_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 1 --model_class_path MultiLabelClassifier.Modelv2.MultiLabelClassifier_ViT_L_Patch16_224_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R104_test_fps_vitp16s224c7_400.log &
+
+    # R105_train_vitp14s336c7_400
+    # 2 RTX 3090 ti
+    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 16 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R105_train_vitp14s336c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/train_validation_test_fold.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R105_train_vitp14s336c7_400.log &

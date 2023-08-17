@@ -114,10 +114,12 @@ Launch command example:
 
 启动命令示例：请重点关注标注为**[核心参数]**的命令选项
 
+**注**：因网络中存在ONNX不支持的ATen算子，export_model_onnx模式无法成功导出ONNX模型
+
 ```bash
 python QuickLauncher.py
 # [核心参数] 模式，fit表示以训练模式启动
-# 总计7种模式{fit-训练,finetune-优化训练,validate-验证,test-测试,predict-预测,export_model-导出模型,arg_debug-命令参数调试}
+# 总计7种模式{fit-训练,finetune-优化训练,validate-验证,test-测试,predict-预测,export_model_torch_script-导出TorchScript模型,export_model_onnx-导出ONNX模型,arg_debug-命令参数调试}
 --stage fit
 # 使用PyTorch2.0的编译加速（如无需使用，则省略此参数）
 --compile_model
@@ -203,7 +205,7 @@ Detailed usage:
 
 ```bash
 usage: QuickLauncher.py [-h] -s
-                        {fit,finetune,validate,test,predict,export_model,arg_debug}
+                        {fit,finetune,validate,test,predict,export_model_torch_script,export_model_onnx,arg_debug}
                         [-cm] [-msp MODEL_SAVE_PATH] [-se SEED_EVERYTHING]
                         [-me MAX_EPOCHS] [-bs BATCH_SIZE] [-cp CKPT_PATH]
                         [-acc {cpu,gpu,tpu,ipu,auto}]
@@ -231,11 +233,11 @@ usage: QuickLauncher.py [-h] -s
 
 options:
   -h, --help            show this help message and exit
-  -s {fit,finetune,validate,test,predict,export_model,arg_debug}, --stage {fit,finetune,validate,test,predict,export_model,arg_debug}
-                        运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-
-                        优化（检查点用于重启训练），validate-验证，test-测试，predict-
-                        预测，export_model-导出TorchScript模型，arg_debug-仅检查参数
-                        (default: None)
+  -s {fit,finetune,validate,test,predict,export_model_torch_script,export_model_onnx,arg_debug}, 
+  --stage {fit,finetune,validate,test,predict,export_model_torch_script,export_model_onnx,arg_debug}
+                        运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，
+                        predict-预测，export_model_torch_script-导出TorchScript模型，export_model_onnx-导出ONNX模型，
+                        arg_debug-仅检查参数 (default: None)
   -cm, --compile_model  编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)
                         (default: False)
   -msp MODEL_SAVE_PATH, --model_save_path MODEL_SAVE_PATH
