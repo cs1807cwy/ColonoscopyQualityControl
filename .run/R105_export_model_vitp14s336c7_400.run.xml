@@ -1,0 +1,25 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="R105_export_model_vitp14s336c7_400" type="PythonConfigurationType" factoryName="Python" folderName="Cls-Spec Train Model">
+    <module name="ColonoscopyQualityControl" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="/home/shr/.conda/envs/cwypy310pt20/bin/python" />
+    <option name="SDK_NAME" value="py310cqc(sftp://shr@222.20.96.99:2700/home/shr/.conda/envs/cwypy310pt20/bin/python)" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="IS_MODULE_SDK" value="false" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/QuickLauncher.py" />
+    <option name="PARAMETERS" value="--stage export_model_torch_script --model_save_path Export/R105_vitp14s336c7_400_MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ths --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt --accelerator gpu --strategy ddp --devices 0 --center_crop_shape 336 336 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>
