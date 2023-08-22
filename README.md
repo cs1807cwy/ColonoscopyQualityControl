@@ -6,6 +6,33 @@ It is an implementation based on PyTorch and Lightning
 
 实现基于PyTorch和Lightning框架
 
+[TOC]
+
+## Project Structure
+
+## 工程结构
+
+```bash
+<ProjectRoot>
+├─Config  # 运行配置文件存储目录，用于Lightning CLI部署启动器
+├─Experiment  # 实验日志、性能、检查点存储目录（按实验名称组织）
+│ ├─<ExperimentName 1>  # 实验目录
+│ └─<ExperimentName ...>
+├─Export  # 导出模型文件存储目录
+│ └─<ExportModel>.ths  # 导出的模型文件	
+├─MultiLabelClassifier  # 程序脚本目录
+│ ├─Network  # 网络模块目录
+│ | ├─ClassifyHead.py  # CSRA模块
+│ | └─ViT_Backbone.py  # 主干网络（使用Timm迁移模型）
+│ ├─DataModule.py  # 数据管理模型
+│ ├─Dataset.py  # 数据预处理
+│ ├─Modelv2.py  # ViT-L-Patch16-224 CSRA网络模型
+│ └─Modelv3.py  # ViT-L-Patch14-336 CSRA网络模型
+├─DeployLauncher.py  # Lightning CLI部署启动器（备用启动入口）
+├─QuickLauncher.py  # 命令行参数快速启动器（启动入口）
+└─README.md  # 当前说明文档
+```
+
 ## Validated Environment
 
 ## 测试环境
@@ -113,6 +140,10 @@ Entry of the program at:
 Launch command example:
 
 启动命令示例：请重点关注标注为**[核心参数]**的命令选项
+
+**注**：PyTorch2.0启用编译加速功能要求GPU Compute Capability > 7.0，参阅[CUDA GPUs - Compute Capability | NVIDIA Developer](https://developer.nvidia.com/cuda-gpus)
+
+**注**：导出Torch Script可用，export_model_torch_script模式导出可用性已通过验证（可适配演示程序）
 
 **注**：因网络中存在ONNX不支持的ATen算子，export_model_onnx模式无法成功导出ONNX模型
 
@@ -323,7 +354,7 @@ options:
 
 ## Launch with Deployment Configuration (Alternative)
 
-## 从配置文件启动（可选，备用启动方式）
+## 从配置文件启动（备用启动方式）
 
 Example config YAML for training and testing can be found in:
 
@@ -337,9 +368,13 @@ Start training from config:
 
 使用如下命令从配置文件启动训练：
 
+注：从配置文件启动方式下无法启用PyTorch2.0的编译加速功能
+
 ```bash
 python DeployLauncher.py fit --config <ProjectRoot>/Config/<ConfigFile.yaml>
 ```
+
+Lightning CLI Configuration References:
 
 Lightning通过配置文件启动: 
 
@@ -360,7 +395,7 @@ tensorboard
 csv
 ```
 
-Log files save to:
+Log files save at:
 
 快速启动时，日志文件保存于重定向目标位置，无重定向时仅输出到控制台。
 
