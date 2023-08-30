@@ -14,7 +14,8 @@ It is an implementation based on PyTorch and Lightning
 
 ```bash
 <ProjectRoot>
-├─Config  # 运行配置文件存储目录，用于Lightning CLI部署启动器
+├─.run  # 运行配置文件存储目录，用于命令行参数快速启动器，PyCharm可识别格式
+├─Config  # 运行配置文件存储目录，用于Lightning CLI部署启动器（备用）
 ├─Experiment  # 实验日志、性能、检查点存储目录（按实验名称组织）
 │ ├─<ExperimentName 1>  # 实验目录
 │ └─<ExperimentName ...>
