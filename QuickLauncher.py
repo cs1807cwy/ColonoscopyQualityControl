@@ -133,6 +133,7 @@ class MultiLabelClassifyLauncher:
 
         # custom settings
         self.model_save_path = args.model_save_path
+        self.pred_save_path = args.pred_save_path
         self.compile_model = args.compile_model
 
     def get_trainer(self) -> Trainer:
@@ -238,11 +239,22 @@ class MultiLabelClassifyLauncher:
                 ckpt_path=self.ckpt_path
             )
         elif stage == 'predict':
-            trainer.predict(
+            pred = trainer.predict(
                 model=model,
                 datamodule=data,
                 ckpt_path=self.ckpt_path
             )
+            if self.pred_save_path is not None:
+                os.makedirs(osp.dirname(self.pred_save_path), exist_ok=True)
+                with open(self.pred_save_path, 'w') as f:
+                    result_dict = dict()
+                    result_list = [i[1].type(torch.int).tolist()[j] for i in pred for j in
+                                   range(len(i[1].type(torch.int).tolist()))]
+                    for i, v in enumerate(sorted(os.listdir(self.data_root))):
+                        result_dict[v] = result_list[i]
+                    json.dump(result_dict, f, indent=2)
+            else:
+                warnings.warn('pred_save_path is not specified, abort saving')
         elif stage == 'export_model_torch_script':
             if self.model_save_path is not None:
                 os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
@@ -398,16 +410,19 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="肠镜多任务质控启动器", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="肠镜多任务质控启动器",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True,
-                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model_torch_script', 'export_model_onnx', 'arg_debug'],
+                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model_torch_script',
+                                 'export_model_onnx', 'arg_debug'],
                         help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，'
                              'export_model_torch_script-导出TorchScript模型，export_model_onnx-导出ONNX模型，arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true',
                         help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
+    parser.add_argument('-psp', '--pred_save_path', default=None, help='预测结果保存路径，置空时不保存')
 
     # 全局控制参数
     parser.add_argument('-se', '--seed_everything', type=int, default=seed_everything, help='随机种子')
