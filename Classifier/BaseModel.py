@@ -21,7 +21,7 @@ class ResNet50Classifier(LightningModule):
         self.save_hyperparameters()
 
         # networks
-        self.classifier = ResNet50(num_classes=num_classes)
+        self.classifier = ResNet50(num_classes=num_classes, pretrained=True)
         self.example_input_array = [torch.zeros(batch_size, 3, input_shape[0], input_shape[1])]
 
     def forward(self, x):
@@ -52,7 +52,7 @@ class ResNet101Classifier(LightningModule):
         self.save_hyperparameters()
 
         # networks
-        self.classifier = ResNet101(num_classes=num_classes)
+        self.classifier = ResNet101(num_classes=num_classes, pretrained=True)
         self.example_input_array = [torch.zeros(batch_size, 3, input_shape[0], input_shape[1])]
 
     def forward(self, x):
@@ -67,7 +67,7 @@ class ResNet101Classifier(LightningModule):
         return [opt], [lr_scheduler]
 
 
-class ResNet152Classifier(LightningModule):
+class VGG19Classifier(LightningModule):
     def __init__(
             self,
             input_shape: Tuple[int, int] = (256, 256),
@@ -83,7 +83,7 @@ class ResNet152Classifier(LightningModule):
         self.save_hyperparameters()
 
         # networks
-        self.classifier = ResNet152(num_classes=num_classes)
+        self.classifier = VGG19Classifier(num_classes=num_classes, pretrained=True)
         self.example_input_array = [torch.zeros(batch_size, 3, input_shape[0], input_shape[1])]
 
     def forward(self, x):
@@ -96,7 +96,6 @@ class ResNet152Classifier(LightningModule):
         opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
-
 
 class ViT_B_Classifier(LightningModule):
     def __init__(
@@ -160,3 +159,7 @@ class ViT_L_Classifier(LightningModule):
         opt = torch.optim.AdamW(self.classifier.parameters(), lr=lr, betas=(b1, b2), amsgrad=True)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.hparams.epochs)
         return [opt], [lr_scheduler]
+
+
+if __name__ == '__main__':
+    net = ResNet101Classifier

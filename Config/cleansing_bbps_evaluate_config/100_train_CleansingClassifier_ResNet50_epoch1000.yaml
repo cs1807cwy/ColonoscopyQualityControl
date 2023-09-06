@@ -4,7 +4,7 @@ seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 3, 4, 5, 6 ]
+  devices: [ 2, 3 ]
   num_nodes: 1
   precision: 32-true
   logger:
@@ -69,31 +69,10 @@ trainer:
   default_root_dir: "Experiment/100_train_CleansingClassifier_ResNet50_epoch1000"
 ckpt_path: null # note: reload from checkpoint
 data:
-  class_path: Classifier.ColonoscopySiteQualityDataModule
+  class_path: Classifier.MultiClassificationDataModule
   init_args:
-    image_index_dir:
-      Nerthus-0:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/0/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/0"
-      Nerthus-1:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/1/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/1"
-      Nerthus-2:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/2/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/2"
-      Nerthus-3:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/3/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/3"
-    image_label:
-      Nerthus-0: "bbps0"
-      Nerthus-1: "bbps1"
-      Nerthus-2: "bbps2"
-      Nerthus-3: "bbps3"
-    sample_weight:
-      Nerthus-0: 450
-      Nerthus-1: 450
-      Nerthus-2: 450
-      Nerthus-3: 450
+    dataset_root: "/mnt/data/cwy/Datasets/UIHNJMuLv3"
+    index_file_path: "/mnt/data/cwy/Datasets/UIHNJMuLv3/cls_folds/job_cleansing_train_validation_test_fold.json"
     resize_shape:
       - 306
       - 306
@@ -105,7 +84,6 @@ data:
     saturation_jitter: 0.8
     batch_size: 64
     num_workers: 8
-    dry_run: false
 model:
   class_path: Classifier.CleansingClassifier
   init_args:

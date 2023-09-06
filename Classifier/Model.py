@@ -131,7 +131,7 @@ class SiteQualityClassifier(ResNet50Classifier):
     #     self.to_torchscript(f'./ModelScript/model_{type(self)}.pt', method='trace')
 
 
-class QualityClassifier(ResNet50Classifier):
+class QualityClassifier(ResNet101Classifier):
     def __init__(
             self,
             input_shape: Tuple[int, int] = (256, 256),
@@ -230,7 +230,7 @@ class QualityClassifier(ResNet50Classifier):
     #     self.to_torchscript(f'./ModelScript/model_{type(self)}.pt', method='trace')
 
 
-class CleansingClassifier(ResNet50Classifier):
+class CleansingClassifier(ResNet101Classifier):
     def __init__(
             self,
             input_shape: Tuple[int, int] = (256, 256),
@@ -243,7 +243,7 @@ class CleansingClassifier(ResNet50Classifier):
             save_dir: str = 'test_viz',
             **kwargs,
     ):
-        super().__init__(input_shape, num_classes, batch_size, lr, b1, b2, epochs, **kwargs)
+        super().__init__(input_shape,num_classes,batch_size,lr,b1,b2,epochs,**kwargs)
         self.index_label: Dict[int, str] = {
             0: 'bbps0',
             1: 'bbps1',
@@ -342,7 +342,7 @@ class CleansingClassifier(ResNet50Classifier):
         return pred_label_codes, pred_labels
 
 
-class IleocecalClassifier(ResNet50Classifier):
+class IleocecalClassifier(ResNet101Classifier):
 
     def __init__(
             self,
@@ -358,8 +358,8 @@ class IleocecalClassifier(ResNet50Classifier):
     ):
         super().__init__(input_shape, num_classes, batch_size, lr, b1, b2, epochs, **kwargs)
         self.index_label: Dict[int, str] = {
-            0: 'ileocecal',
-            1: 'nofeature'
+            0: 'nofeature',
+            1: 'ileocecal',
         }
         if 'index_label' in kwargs:
             self.index_label: Dict[int, str] = kwargs['index_label']
@@ -458,8 +458,8 @@ class IleocecalClassifier_ViT_B(ViT_B_Classifier):
     ):
         super().__init__(input_shape, pretrained, num_classes, batch_size, lr, b1, b2, epochs, **kwargs)
         self.index_label: Dict[int, str] = {
-            0: 'ileocecal',
-            1: 'nofeature'
+            0: 'nofeature',
+            1: 'ileocecal',
         }
         if 'index_label' in kwargs:
             self.index_label: Dict[int, str] = kwargs['index_label']

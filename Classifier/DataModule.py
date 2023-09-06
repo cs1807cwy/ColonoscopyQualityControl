@@ -187,5 +187,228 @@ class ColonoscopySiteQualityDataModule(LightningDataModule):
             return {}
 
 
+class SingleClassificationDataModule(LightningDataModule):
+    def __init__(
+            self,
+            dataset_root: str,
+            index_file_path: str,
+            resize_shape: Tuple[int, int] = (306, 306),
+            center_crop_shape: Tuple[int, int] = (256, 256),
+            brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
+            contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
+            saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
+            batch_size: int = 16,
+            num_workers: int = 0,
+    ):
+        """
+        Args:
+            dataset_root: 数据集根目录
+            index_file_path: str 索引文件路径
+            resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
+            center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
+            brightness_jitter: 亮度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - brightness), 1 + brightness]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            contrast_jitter: 对比度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - contrast), 1 + contrast]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            saturation_jitter: 饱和度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - saturation), 1 + saturation]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            batch_size: 批大小
+            num_workers: 加载数据的子进程数
+        """
+
+        super().__init__()
+        self.dataset_root: str = dataset_root
+        self.index_file_path: str = index_file_path
+        self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
+        self.resize_shape: Tuple[int, int] = resize_shape
+        self.center_crop_shape: Tuple[int, int] = center_crop_shape
+        self.brightness_jitter: Union[float, Tuple[float, float]] = brightness_jitter
+        self.contrast_jitter: Union[float, Tuple[float, float]] = contrast_jitter
+        self.saturation_jitter: Union[float, Tuple[float, float]] = saturation_jitter
+        self.batch_size: int = batch_size
+        self.num_workers: int = num_workers
+
+        self.train_dataset: SingleClassificationDataSet = None
+        self.validation_dataset: SingleClassificationDataSet = None
+        self.test_dataset: SingleClassificationDataSet = None
+
+    def setup(self, stage=None):
+        # Assign train/val datasets for use in dataloaders
+        if stage == 'fit' or stage is None:
+            # list & collect all images
+            self.train_dataset = SingleClassificationDataSet(
+                self.dataset_root,
+                self.index_file_path,
+                'train',
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+            )
+            self.validation_dataset = SingleClassificationDataSet(
+                self.dataset_root,
+                self.index_file_path,
+                'validation',
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+            )
+        elif stage == 'test':
+            self.test_dataset = SingleClassificationDataSet(
+                self.dataset_root,
+                self.index_file_path,
+                'test',
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+            )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.validation_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
+    def size(self, part=None) -> Optional[int]:
+        if part == 'train' or part is None:
+            return len(self.train_dataset)
+        elif part == 'validation':
+            return len(self.validation_dataset)
+        else:
+            return None
+
+
+class MultiClassificationDataModule(LightningDataModule):
+    def __init__(
+            self,
+            dataset_root: str,
+            index_file_path: str,
+            resize_shape: Tuple[int, int] = (306, 306),
+            center_crop_shape: Tuple[int, int] = (256, 256),
+            brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
+            contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
+            saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
+            batch_size: int = 16,
+            num_workers: int = 0,
+    ):
+        """
+        Args:
+            dataset_root: 数据集根目录
+            index_file_path: str 索引文件路径
+            resize_shape: Tuple[高, 宽] 预处理时缩放图像的目标规格
+            center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
+            brightness_jitter: 亮度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - brightness), 1 + brightness]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            contrast_jitter: 对比度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - contrast), 1 + contrast]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            saturation_jitter: 饱和度随机偏移范围，值应当非负。如果为float，偏移范围为[max(0, 1 - saturation), 1 + saturation]
+                如果为Tuple[float, float]，偏移范围为[min, max]
+            batch_size: 批大小
+            num_workers: 加载数据的子进程数
+        """
+
+        super().__init__()
+        self.dataset_root: str = dataset_root
+        self.index_file_path: str = index_file_path
+        self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
+        self.resize_shape: Tuple[int, int] = resize_shape
+        self.center_crop_shape: Tuple[int, int] = center_crop_shape
+        self.brightness_jitter: Union[float, Tuple[float, float]] = brightness_jitter
+        self.contrast_jitter: Union[float, Tuple[float, float]] = contrast_jitter
+        self.saturation_jitter: Union[float, Tuple[float, float]] = saturation_jitter
+        self.batch_size: int = batch_size
+        self.num_workers: int = num_workers
+
+        self.train_dataset: MultiClassificationDataSet = None
+        self.validation_dataset: MultiClassificationDataSet = None
+        self.test_dataset: MultiClassificationDataSet = None
+
+    def setup(self, stage=None):
+        # Assign train/val datasets for use in dataloaders
+        if stage == 'fit' or stage is None:
+            # list & collect all images
+            self.train_dataset = MultiClassificationDataSet(
+                self.dataset_root,
+                self.index_file_path,
+                'train',
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+            )
+            self.validation_dataset = MultiClassificationDataSet(
+                self.dataset_root,
+                self.index_file_path,
+                'validation',
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+            )
+        elif stage == 'test':
+            self.test_dataset = MultiClassificationDataSet(
+                self.dataset_root,
+                self.index_file_path,
+                'test',
+                self.resize_shape,
+                self.center_crop_shape,
+                self.brightness_jitter,
+                self.contrast_jitter,
+                self.saturation_jitter,
+            )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.validation_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
+    def size(self, part=None) -> Optional[int]:
+        if part == 'train' or part is None:
+            return len(self.train_dataset)
+        elif part == 'validation':
+            return len(self.validation_dataset)
+        else:
+            return None
+
 if __name__ == '__main__':
     pass

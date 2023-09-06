@@ -203,7 +203,8 @@ class ColonoscopySiteQualityDataset(Dataset):
             return label_code, label, subset_key, basename
         else:
             image: Image.Image = Image.open(image_path).convert('RGB')
-            item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(image)
+            item: torch.Tensor = self.transform_validation(image) if self.for_validation else self.transform_train(
+                image)
             if self.for_test:
                 origin_item = transforms.ToTensor()(image)
                 return item, label_code, origin_item
@@ -295,3 +296,135 @@ class ColonoscopyPredictDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.items)
+
+
+class SingleClassificationDataSet(Dataset):
+    def __init__(self,
+                 # index文件路径
+                 dataset_root: str,
+                 index_path: str,
+                 dataset_mode: str = 'train',
+                 resize_shape: Tuple[int, int] = (306, 306),
+                 center_crop_shape: Tuple[int, int] = (256, 256),
+                 brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
+                 contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
+                 saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
+                 ):
+
+        self.dataset_root: str = dataset_root
+        self.dataset_mode: str = dataset_mode
+        self.transform_train = transforms.Compose([
+            transforms.ToTensor(),
+            # 缩放和截去黑边
+            transforms.Resize(resize_shape, antialias=True),
+            transforms.CenterCrop(center_crop_shape),
+            # 亮度、对比度、饱和度泛化
+            transforms.ColorJitter(brightness_jitter, contrast_jitter, saturation_jitter),
+            # 8方向泛化
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomApply([transforms.RandomRotation([90, 90])])
+        ])
+        self.transform_validation_test = transforms.Compose([
+            transforms.ToTensor(),
+            # 缩放和截去黑边
+            transforms.Resize(resize_shape, antialias=True),
+            transforms.CenterCrop(center_crop_shape)
+        ])
+
+        # index文件内容
+        self.index_path: str = index_path
+        self.index_all = json.load(open(self.index_path, encoding='utf-8'))
+        self.index_subset = (self.index_all[self.dataset_mode]).items()
+        self.index_code: list = self.index_all['code']
+        self.label_code: dict[float, torch.Tensor] = dict()
+
+        for idx,_ in enumerate(self.index_code):
+            onehot_code = torch.zeros(len(self.index_code))
+            onehot_code[idx]=1.
+            self.label_code[idx]=onehot_code
+    def __getitem__(self, idx: int) -> (torch.Tensor, str):
+        image_path: str = osp.join(self.dataset_root, self.index_subset[idx][0])
+        raw_label: float = self.index_subset[idx][1][0]
+        label = self.label_code[raw_label]
+        # label: 标签
+        # image_path: 图像文件路径
+        image: Image.Image = Image.open(image_path).convert('RGB')
+        if self.dataset_mode == 'train':
+            item: torch.Tensor = self.transform_train(image)
+        else:  # validation & test
+            item: torch.Tensor = self.transform_validation_test(image)
+        if self.dataset_mode == 'test':
+            origin_item = transforms.ToTensor()(image)
+            return item, label, origin_item
+        else:  # validation & train
+            return item, label
+
+    def __len__(self) -> int:
+        return len(self.index_subset)
+
+
+class MultiClassificationDataSet(Dataset):
+    def __init__(self,
+                 # index文件路径
+                 dataset_root: str,
+                 index_path: str,
+                 dataset_mode: str = 'train',
+                 resize_shape: Tuple[int, int] = (306, 306),
+                 center_crop_shape: Tuple[int, int] = (256, 256),
+                 brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
+                 contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
+                 saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
+                 ):
+
+        self.dataset_root: str = dataset_root
+        self.dataset_mode: str = dataset_mode
+        self.transform_train = transforms.Compose([
+            transforms.ToTensor(),
+            # 缩放和截去黑边
+            transforms.Resize(resize_shape, antialias=True),
+            transforms.CenterCrop(center_crop_shape),
+            # 亮度、对比度、饱和度泛化
+            transforms.ColorJitter(brightness_jitter, contrast_jitter, saturation_jitter),
+            # 8方向泛化
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomApply([transforms.RandomRotation([90, 90])])
+        ])
+        self.transform_validation_test = transforms.Compose([
+            transforms.ToTensor(),
+            # 缩放和截去黑边
+            transforms.Resize(resize_shape, antialias=True),
+            transforms.CenterCrop(center_crop_shape)
+        ])
+
+        # index文件内容
+        self.index_path: str = index_path
+        self.index_all = json.load(open(self.index_path, encoding='utf-8'))
+        self.index_subset = (self.index_all[self.dataset_mode]).items()
+        self.index_code: list = self.index_all['code']
+        self.label_code: dict[float, torch.Tensor] = dict()
+
+        for idx,_ in enumerate(self.index_code):
+            onehot_code = torch.zeros(len(self.index_code))
+            onehot_code[idx]=1.
+            self.label_code[idx]=onehot_code
+    def __getitem__(self, idx: int) -> (torch.Tensor, str):
+        image_path: str = osp.join(self.dataset_root, self.index_subset[idx][0])
+        raw_label: float = self.index_subset[idx][1]
+        label = torch.Tensor(raw_label)
+        # label: 标签
+        # image_path: 图像文件路径
+        image: Image.Image = Image.open(image_path).convert('RGB')
+        if self.dataset_mode == 'train':
+            item: torch.Tensor = self.transform_train(image)
+        else:  # validation & test
+            item: torch.Tensor = self.transform_validation_test(image)
+        if self.dataset_mode == 'test':
+            origin_item = transforms.ToTensor()(image)
+            return item, label, origin_item
+        else:  # validation & train
+            return item, label
+
+    def __len__(self) -> int:
+        return len(self.index_subset)
