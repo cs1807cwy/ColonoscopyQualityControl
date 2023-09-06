@@ -137,7 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('-psr', '--pred_save_root', type=str, help='预测结果保存路径')
     parser.add_argument('-osr', '--outlier_save_root', type=str, help='异常帧保存路径')
     parser.add_argument('-cp', '--ckpt_path', type=str, help='模型权重路径')
-    parser.add_argument('-dev', '--devices', type=int, nargs='+', default=[2], help='使用的GPU设备')
+    parser.add_argument('-dev', '--devices', type=str, nargs='+', default=[4,7,8,9], help='使用的GPU设备')
     parser.add_argument('-bs', '--batch_size', type=int, default=1, help='批大小')
     parser.add_argument('-ots', '--outlier_thresh_scale', type=float, default=0.11, help='异常帧阈值缩放倍率')
 

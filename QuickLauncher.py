@@ -189,7 +189,7 @@ class MultiLabelClassifyLauncher:
 
     def launch(self, stage):
         model = self.get_model()
-        if stage in {'finetune', 'export_model'}:
+        if stage in {'finetune', 'export_model_torch_script', 'export_model_onnx'}:
             model = model.load_from_checkpoint(
                 self.ckpt_path,
                 map_location=torch.device('cpu'),
