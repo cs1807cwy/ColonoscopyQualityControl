@@ -1,22 +1,22 @@
 # lightning.pytorch==2.0.1.post0
-# 400_train_QualityClassifier_ResNet50_epoch1000
+# 500_train_PositionClassifier_ResNet101
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 8, 9 ]
+  devices: [ 0 ]
   num_nodes: 1
   precision: 32-true
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "400_train_QualityClassifier_ResNet50_epoch1000"          # note: name of the current experiment
+        name: "500_train_PositionClassifier_ResNet101"          # note: name of the current experiment
         version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "400_train_QualityClassifier_ResNet50_epoch1000"          # note: keep the same experiment name
+        name: "500_train_PositionClassifier_ResNet101"          # note: keep the same experiment name
         version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -28,15 +28,15 @@ trainer:
         monitor: "epoch"
         mode: max
         every_n_epochs: 1 # note: save .ckpt every n epochs
-        filename: "QualityClassifier_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
+        filename: "PositionClassifier_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
         save_top_k: 5
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         monitor: "val_acc" # note: save .ckpt with the highest val_acc
         mode: max
-        filename: "QualityClassifier_best_val_acc_{epoch:03d}_{val_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
+        filename: "PositionClassifier_best_val_acc_{epoch:03d}_{val_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
   fast_dev_run: false
-  max_epochs: 1000
+  max_epochs: 50
   min_epochs: null
   max_steps: -1
   min_steps: null
@@ -66,75 +66,33 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/400_train_QualityClassifier_ResNet50_epoch1000"
+  default_root_dir: "Experiment/500_train_PositionClassifier_ResNet101"
 ckpt_path: null # note: reload from checkpoint
 data:
-  class_path: Classifier.ColonoscopySiteQualityDataModule
+  class_path: Classifier.SingleClassificationDataModule
   init_args:
-    image_index_dir:
-      UIHIMG-ileocecal:
-        index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/ileocecal/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/UIHIMG/ileocecal"
-      UIHIMG-nofeature:
-        index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/nofeature/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/UIHIMG/nofeature"
-      UIHIMG-nonsense:
-        index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/nonsense/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/UIHIMG/nonsense"
-      UIHIMG-outside:
-        index: "/mnt/data4/cwy/Datasets/KIndex/UIHIMG/outside/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/UIHIMG/outside"
-      Nerthus-0:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/0/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/0"
-      Nerthus-1:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/1/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/1"
-      Nerthus-2:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/2/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/2"
-      Nerthus-3:
-        index: "/mnt/data4/cwy/Datasets/KIndex/Nerthus/3/fold0.json"
-        dir: "/mnt/data4/cwy/Datasets/Nerthus/3"
-    image_label:
-      UIHIMG-ileocecal: "fine"
-      UIHIMG-nofeature: "fine"
-      UIHIMG-nonsense: "nonsense"
-      UIHIMG-outside: "fine"
-      Nerthus-0: "fine"
-      Nerthus-1: "fine"
-      Nerthus-2: "fine"
-      Nerthus-3: "fine"
-    sample_weight:
-      UIHIMG-ileocecal: 1500
-      UIHIMG-nofeature: 1500
-      UIHIMG-nonsense: 6000
-      UIHIMG-outside: 1500
-      Nerthus-0: 375
-      Nerthus-1: 375
-      Nerthus-2: 375
-      Nerthus-3: 375
+    dataset_root: "/mnt/data/cwy/Datasets/UIHNJMuLv3"
+    index_file_path: "/mnt/data/cwy/Datasets/UIHNJMuLv3/cls_folds/job_position_train_validation_test_fold.json"
     resize_shape:
-      - 306
-      - 306
+      - 336
+      - 336
     center_crop_shape:
-      - 256
-      - 256
+      - 336
+      - 336
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
     batch_size: 64
-    num_workers: 28
-    dry_run: false
+    num_workers: 8
 model:
-  class_path: Classifier.QualityClassifier
+  class_path: Classifier.PositionClassifier
   init_args:
     input_shape:
-      - 256
-      - 256
+      - 336
+      - 336
     num_classes: 2
     batch_size: 64
     lr: 0.0001
     b1: 0.9
     b2: 0.999
-    epochs: 1000
+    epochs: 50

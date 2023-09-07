@@ -219,7 +219,6 @@ class SingleClassificationDataModule(LightningDataModule):
         super().__init__()
         self.dataset_root: str = dataset_root
         self.index_file_path: str = index_file_path
-        self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
         self.resize_shape: Tuple[int, int] = resize_shape
         self.center_crop_shape: Tuple[int, int] = center_crop_shape
         self.brightness_jitter: Union[float, Tuple[float, float]] = brightness_jitter
@@ -331,7 +330,6 @@ class MultiClassificationDataModule(LightningDataModule):
         super().__init__()
         self.dataset_root: str = dataset_root
         self.index_file_path: str = index_file_path
-        self.sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = sample_weight
         self.resize_shape: Tuple[int, int] = resize_shape
         self.center_crop_shape: Tuple[int, int] = center_crop_shape
         self.brightness_jitter: Union[float, Tuple[float, float]] = brightness_jitter

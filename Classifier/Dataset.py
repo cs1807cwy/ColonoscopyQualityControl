@@ -335,7 +335,7 @@ class SingleClassificationDataSet(Dataset):
         # index文件内容
         self.index_path: str = index_path
         self.index_all = json.load(open(self.index_path, encoding='utf-8'))
-        self.index_subset = (self.index_all[self.dataset_mode]).items()
+        self.index_subset = list((self.index_all[self.dataset_mode]).items())
         self.index_code: list = self.index_all['code']
         self.label_code: dict[float, torch.Tensor] = dict()
 
@@ -401,7 +401,7 @@ class MultiClassificationDataSet(Dataset):
         # index文件内容
         self.index_path: str = index_path
         self.index_all = json.load(open(self.index_path, encoding='utf-8'))
-        self.index_subset = (self.index_all[self.dataset_mode]).items()
+        self.index_subset = list((self.index_all[self.dataset_mode]).items())
         self.index_code: list = self.index_all['code']
         self.label_code: dict[float, torch.Tensor] = dict()
 
