@@ -1,5 +1,5 @@
 # lightning.pytorch==2.0.1.post0
-# 100_test_CleansingClassifier_ResNet101
+# 102_test_CleansingClassifier_VGG19
 seed_everything: 0
 trainer:
   accelerator: gpu
@@ -11,12 +11,12 @@ trainer:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "100_test_CleansingClassifier_ResNet101"          # note: name of the current experiment
+        name: "102_test_CleansingClassifier_VGG19"          # note: name of the current experiment
         version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "100_test_CleansingClassifier_ResNet101"          # note: keep the same experiment name
+        name: "102_test_CleansingClassifier_VGG19"          # note: keep the same experiment name
         version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -66,8 +66,8 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/100_test_CleansingClassifier_ResNet101"
-ckpt_path: "/mnt/data/cwy/ColonoscopyQualityControl/Experiment/100_train_CleansingClassifier_ResNet101/tensorboard_train_val/checkpoints/CleansingClassifier_best_val_acc_epoch=022_val_acc=0.9678.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/102_test_CleansingClassifier_VGG19"
+ckpt_path: "/mnt/data/cwy/ColonoscopyQualityControl/Experiment/102_train_CleansingClassifier_VGG19/tensorboard_train_val/checkpoints/CleansingClassifier_best_val_acc_epoch=136_val_acc=0.9691.ckpt" # note: reload from checkpoint
 data:
   class_path: Classifier.MultiClassificationDataModule
   init_args:
@@ -85,7 +85,7 @@ data:
     batch_size: 1
     num_workers: 8
 model:
-  class_path: Classifier.CleansingClassifier
+  class_path: Classifier.CleansingClassifierVGG19
   init_args:
     input_shape:
       - 336
@@ -96,4 +96,4 @@ model:
     b1: 0.9
     b2: 0.999
     epochs: 500
-    save_dir: "Experiment/100_test_CleansingClassifier_ResNet101/test_viz"
+    save_dir: "Experiment/102_test_CleansingClassifier_VGG19/test_viz"

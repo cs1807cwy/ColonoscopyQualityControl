@@ -83,7 +83,7 @@ class VGG19Classifier(LightningModule):
         self.save_hyperparameters()
 
         # networks
-        self.classifier = VGG19Classifier(num_classes=num_classes, pretrained=True)
+        self.classifier = VGG19(num_classes=num_classes, pretrained=True)
         self.example_input_array = [torch.zeros(batch_size, 3, input_shape[0], input_shape[1])]
 
     def forward(self, x):

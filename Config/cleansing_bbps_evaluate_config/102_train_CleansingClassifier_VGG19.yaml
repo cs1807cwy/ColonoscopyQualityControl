@@ -1,22 +1,22 @@
 # lightning.pytorch==2.0.1.post0
-# 100_train_CleansingClassifier_VGG19
+# 102_train_CleansingClassifier_VGG19
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 0, 3 ]
+  devices: [ 0 ]
   num_nodes: 1
   precision: 32-true
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "100_train_CleansingClassifier_VGG19"          # note: name of the current experiment
+        name: "102_train_CleansingClassifier_VGG19"          # note: name of the current experiment
         version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "100_train_CleansingClassifier_VGG19"          # note: keep the same experiment name
+        name: "102_train_CleansingClassifier_VGG19"          # note: keep the same experiment name
         version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -36,7 +36,7 @@ trainer:
         mode: max
         filename: "CleansingClassifier_best_val_acc_{epoch:03d}_{val_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
   fast_dev_run: false
-  max_epochs: 1000
+  max_epochs: 500
   min_epochs: null
   max_steps: -1
   min_steps: null
@@ -66,7 +66,7 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/100_train_CleansingClassifier_VGG19"
+  default_root_dir: "Experiment/102_train_CleansingClassifier_VGG19"
 ckpt_path: null # note: reload from checkpoint
 data:
   class_path: Classifier.MultiClassificationDataModule
@@ -82,17 +82,17 @@ data:
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
-    batch_size: 64
+    batch_size: 32
     num_workers: 8
 model:
-  class_path: Classifier.CleansingClassifier
+  class_path: Classifier.CleansingClassifierVGG19
   init_args:
     input_shape:
       - 336
       - 336
     num_classes: 4
-    batch_size: 64
+    batch_size: 32
     lr: 0.0001
     b1: 0.9
     b2: 0.999
-    epochs: 1000
+    epochs: 500

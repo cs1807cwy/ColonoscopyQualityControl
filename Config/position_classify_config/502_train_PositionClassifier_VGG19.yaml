@@ -1,22 +1,22 @@
 # lightning.pytorch==2.0.1.post0
-# 100_test_CleansingClassifier_ResNet101
+# 502_train_PositionClassifier_VGG19
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 3 ]
+  devices: [ 1 ]
   num_nodes: 1
   precision: 32-true
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "100_test_CleansingClassifier_ResNet101"          # note: name of the current experiment
+        name: "502_train_PositionClassifier_VGG19"          # note: name of the current experiment
         version: "tensorboard_train_val"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "100_test_CleansingClassifier_ResNet101"          # note: keep the same experiment name
+        name: "502_train_PositionClassifier_VGG19"          # note: keep the same experiment name
         version: "csv_train_val"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
@@ -28,15 +28,15 @@ trainer:
         monitor: "epoch"
         mode: max
         every_n_epochs: 1 # note: save .ckpt every n epochs
-        filename: "CleansingClassifier_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
+        filename: "PositionClassifier_{epoch:03d}" # note: inject epoch into .ckpt filename, make sure you had
         save_top_k: 5
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         monitor: "val_acc" # note: save .ckpt with the highest val_acc
         mode: max
-        filename: "CleansingClassifier_best_val_acc_{epoch:03d}_{val_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
+        filename: "PositionClassifier_best_val_acc_{epoch:03d}_{val_acc:.4f}" # note: inject val_metric_l1_err & val_metric_l2_err into .ckpt filename, make sure you had logged these two metrics in validation_step()
   fast_dev_run: false
-  max_epochs: 500
+  max_epochs: 50
   min_epochs: null
   max_steps: -1
   min_steps: null
@@ -66,13 +66,13 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/100_test_CleansingClassifier_ResNet101"
-ckpt_path: "/mnt/data/cwy/ColonoscopyQualityControl/Experiment/100_train_CleansingClassifier_ResNet101/tensorboard_train_val/checkpoints/CleansingClassifier_best_val_acc_epoch=022_val_acc=0.9678.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/502_train_PositionClassifier_VGG19"
+ckpt_path: null # note: reload from checkpoint
 data:
-  class_path: Classifier.MultiClassificationDataModule
+  class_path: Classifier.SingleClassificationDataModule
   init_args:
     dataset_root: "/mnt/data/cwy/Datasets/UIHNJMuLv3"
-    index_file_path: "/mnt/data/cwy/Datasets/UIHNJMuLv3/cls_folds/job_cleansing_train_validation_test_fold.json"
+    index_file_path: "/mnt/data/cwy/Datasets/UIHNJMuLv3/cls_folds/job_position_train_validation_test_fold.json"
     resize_shape:
       - 336
       - 336
@@ -82,18 +82,17 @@ data:
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
-    batch_size: 1
+    batch_size: 32
     num_workers: 8
 model:
-  class_path: Classifier.CleansingClassifier
+  class_path: Classifier.PositionClassifierVGG19
   init_args:
     input_shape:
       - 336
       - 336
-    num_classes: 4
-    batch_size: 1
+    num_classes: 2
+    batch_size: 32
     lr: 0.0001
     b1: 0.9
     b2: 0.999
-    epochs: 500
-    save_dir: "Experiment/100_test_CleansingClassifier_ResNet101/test_viz"
+    epochs: 50
