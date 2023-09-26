@@ -141,7 +141,7 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         logit = F.sigmoid(self(image))
 
         # 计算val_acc
-        # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
+        # label_pred_tf: BoolTensor[B, 7] = B * [outside?, nonsense?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
         label_pred_tf = torch.ge(logit, self.hparams.thresh)
         label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
         mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
