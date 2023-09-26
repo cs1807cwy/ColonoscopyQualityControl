@@ -10,7 +10,7 @@ import math
 from typing import List, Dict
 
 
-def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str) -> Dict[str, float]:
+def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str, step: int) -> Dict[str, float]:
     # 筛选全部具有ext指定包含后缀名的文件
     items = []
     video = dict()
@@ -31,7 +31,8 @@ def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root
             success, frame = cap.read()
             if not success:
                 break
-            cv2.imwrite(osp.join(frame_save_path, f"{frame_count:06d}.png"), frame)
+            if frame_count % step == 0:
+                cv2.imwrite(osp.join(frame_save_path, f"{frame_count:06d}.png"), frame)
             frame_count += 1
         cap.release()
         print(f"Video {name} : Split into {frame_count} frames.")
@@ -45,13 +46,14 @@ def call_predict_once(exp_name: str, ckpt_path: str, batch_size: int, input_imag
     # --stage predict --batch_size 1 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_ileoPrec_epoch=109_label_ileocecal_prec_thresh=0.9812.ckpt --accelerator gpu --strategy ddp --devices 2 --log_every_n_steps 10 --experiment_name R105_predict_fps_vitp14s336c7_400 --version test_predict --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_root ../Datasets/pred_img --resize_shape 336 336 --center_crop_shape 336 336 --num_workers 12 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --pred_save_path Experiment/R105_predict_fps_vitp14s336c7_400/predict_result.json --num_heads 8 --attention_lambda 0.3 --thresh 0.5
 
     p = subprocess.run([
-        '/home/shr/.conda/envs/cwypy310pt20/bin/python', 'QuickLauncher.py',
+        # '/home/shr/.conda/envs/cwypy310pt20/bin/python'
+        "/mnt/data4/cwy/Anaconda/envs/cwypy310pt20/bin/python", 'QuickLauncher.py',
         '--stage', 'predict',
         '--batch_size', str(batch_size),
         '--ckpt_path', ckpt_path,
         '--accelerator', 'gpu',
         '--strategy', 'ddp',
-        '--devices', '2',
+        '--devices', '6',
         '--log_every_n_steps', '10',
         '--experiment_name', exp_name,
         '--version', 'detect',
@@ -88,13 +90,14 @@ def detect_outlier_all(pred_save_root: str, video_fps_info: Dict[str, float], ou
     # 返回值为异常帧的起始和终止帧的索引（整个列表中的位置索引），格式为[[start1, end1], [start2, end2], ...]
     total_outlier = dict()
     for v in sorted(os.listdir(pred_save_root)):
-        frame_threshold = round(video_fps_info[v] * outlier_thresh_scale)
+        frame_threshold = round(2)
         print(f"Video {v} : Frame threshold is {frame_threshold}.")
         pred_save_path = osp.join(pred_save_root, v, 'predict_result.json')
         with open(pred_save_path, 'r') as f:
             pred_result = json.load(f)
         pred_array = np.array([pred_result[k] for k in sorted(pred_result.keys())])
         pred_array = np.transpose(pred_array)
+        pred_array[1] += pred_array[0]  # 将outside标签视为nonsense标签处理
         # 此时pred_array的shape为(7, n)，其中n为视频帧数
         # 接下来对每一行进行异常检测，判断连续的相同0片段或者连续的相同1片段的帧数是否大于等于frame_threshold
         # 如果不大于，则认为这个连续范围内的帧为异常帧
@@ -104,6 +107,7 @@ def detect_outlier_all(pred_save_root: str, video_fps_info: Dict[str, float], ou
             # 求连续相同的0片段和1片段的范围，并判断是否大于等于阈值
             curr_label_outlier = {0: [], 1: []}
             curr_label = pred_array[i, 0]  # 0 or 1
+
             curr_start = 0
             curr_end = 0
             for j in range(pred_array.shape[1]):
@@ -123,7 +127,7 @@ def detect_outlier_all(pred_save_root: str, video_fps_info: Dict[str, float], ou
     return total_outlier
 
 
-def save_outlier(outlier_result: Dict[str, List[List[int]]], outlier_save_root: str):
+def save_outlier(outlier_result: Dict[str, Dict[int, Dict[int, List[List[int]]]]], outlier_save_root: str):
     os.makedirs(outlier_save_root, exist_ok=True)
     json.dump(outlier_result, open(osp.join(outlier_save_root, 'outlier_result.json'), 'w'), indent=2)
 
@@ -137,12 +141,12 @@ if __name__ == '__main__':
     parser.add_argument('-psr', '--pred_save_root', type=str, help='预测结果保存路径')
     parser.add_argument('-osr', '--outlier_save_root', type=str, help='异常帧保存路径')
     parser.add_argument('-cp', '--ckpt_path', type=str, help='模型权重路径')
-    parser.add_argument('-dev', '--devices', type=str, nargs='+', default=[4,7,8,9], help='使用的GPU设备')
+    parser.add_argument('-dev', '--devices', type=str, nargs='+', default=[0], help='使用的GPU设备')
     parser.add_argument('-bs', '--batch_size', type=int, default=1, help='批大小')
     parser.add_argument('-ots', '--outlier_thresh_scale', type=float, default=0.11, help='异常帧阈值缩放倍率')
 
     args = parser.parse_args()
-    video_fps_info = extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root)
-    call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
-    total_outlier = detect_outlier_all(args.pred_save_root, video_fps_info, args.outlier_thresh_scale)
+    #video_fps_info = extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root,2)
+    #call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
+    total_outlier = detect_outlier_all(args.pred_save_root, dict(), args.outlier_thresh_scale)
     save_outlier(total_outlier, args.outlier_save_root)
