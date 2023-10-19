@@ -2,6 +2,8 @@ import argparse
 import json
 import os
 import os.path as osp
+import shutil
+
 import cv2
 import glob
 import subprocess
@@ -75,12 +77,16 @@ def call_predict_once(exp_name: str, ckpt_path: str, batch_size: int, input_imag
 def call_predict_all(exp_name: str, ckpt_path: str, batch_size: int, frame_save_root: str, pred_save_root: str):
     for v in sorted((os.listdir(frame_save_root))):
         pred_save_path = osp.join(pred_save_root, v, 'predict_result.json')
+        if osp.exists(pred_save_path):
+            os.remove(pred_save_path)
         os.makedirs(osp.dirname(pred_save_path), exist_ok=True)
         r_code = call_predict_once(exp_name, ckpt_path, batch_size, osp.join(frame_save_root, v), pred_save_path)
+        if r_code == 0:
+            shutil.copy2(pred_save_path, osp.join(pred_save_root, v, f'predict_result_{osp.basename(ckpt_path)}.json'))
         print(f"Video {v} : Predict return {r_code}.")
 
 
-def detect_outlier_all(pred_save_root: str, video_fps_info: Dict[str, float], outlier_thresh_scale: float) -> \
+def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
         Dict[str, Dict[int, Dict[int, List[List[int]]]]]:
     # 读取预测结果，进行异常检测
     # predict_result.json 格式：
@@ -90,31 +96,36 @@ def detect_outlier_all(pred_save_root: str, video_fps_info: Dict[str, float], ou
     # 返回值为异常帧的起始和终止帧的索引（整个列表中的位置索引），格式为[[start1, end1], [start2, end2], ...]
     total_outlier = dict()
     for v in sorted(os.listdir(pred_save_root)):
-        frame_threshold = round(2)
-        print(f"Video {v} : Frame threshold is {frame_threshold}.")
+        print(f"Video {v} : Frame threshold -> {frame_thresholds}")
         pred_save_path = osp.join(pred_save_root, v, 'predict_result.json')
         with open(pred_save_path, 'r') as f:
             pred_result = json.load(f)
-        pred_array = np.array([pred_result[k] for k in sorted(pred_result.keys())])
-        pred_array = np.transpose(pred_array)
-        pred_array[1] += pred_array[0]  # 将outside标签视为nonsense标签处理
+        pred_array_np = np.array([pred_result[k] for k in sorted(pred_result.keys())])
+        pred_array_ori = np.transpose(pred_array_np)
+
+        # pred_array[1] += pred_array[0]  # 将outside标签视为nonsense标签处理
+
         # 此时pred_array的shape为(7, n)，其中n为视频帧数
         # 接下来对每一行进行异常检测，判断连续的相同0片段或者连续的相同1片段的帧数是否大于等于frame_threshold
         # 如果不大于，则认为这个连续范围内的帧为异常帧
         # 返回值为异常帧的起始和终止帧的索引Dict,key为v, value为list, 其shape为(7)，表示7个类别, 每个元素为一个列表，格式为[[start1, end1], [start2, end2], ...]
         curr_video_outlier = dict()
-        for i in range(pred_array.shape[0]):
+        for i in range(pred_array_ori.shape[0]):
             # 求连续相同的0片段和1片段的范围，并判断是否大于等于阈值
+            curr_frame_threshold = frame_thresholds[i]
             curr_label_outlier = {0: [], 1: []}
-            curr_label = pred_array[i, 0]  # 0 or 1
+            pred_array = np.copy(pred_array_ori)
+            if i == 0:
+                pred_array[1] += pred_array[0]  # 将outside标签视为nonsense标签处理
 
+            curr_label = pred_array[i, 0]  # 0 or 1
             curr_start = 0
             curr_end = 0
             for j in range(pred_array.shape[1]):
                 if pred_array[i, j] == curr_label:
                     curr_end = j
                 else:
-                    if curr_end - curr_start + 1 <= frame_threshold:
+                    if curr_end - curr_start + 1 <= curr_frame_threshold:
                         if curr_label == 0:
                             curr_label_outlier[0].append([curr_start, curr_end])
                         else:
@@ -146,7 +157,8 @@ if __name__ == '__main__':
     parser.add_argument('-ots', '--outlier_thresh_scale', type=float, default=0.11, help='异常帧阈值缩放倍率')
 
     args = parser.parse_args()
-    #video_fps_info = extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root,2)
-    #call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
-    total_outlier = detect_outlier_all(args.pred_save_root, dict(), args.outlier_thresh_scale)
+    # extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 2)
+    call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
+    frame_threshes = {0: 50, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3}
+    total_outlier = detect_outlier_all(args.pred_save_root, frame_threshes)
     save_outlier(total_outlier, args.outlier_save_root)

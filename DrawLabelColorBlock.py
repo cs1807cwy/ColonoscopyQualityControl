@@ -38,7 +38,7 @@ def DrawLabelColorBlockOnFrame(imageSrcPath: str, imageSavePath: str, **kwarg) -
     cls_bbps: int = kwarg['bbps']
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill=['#5b0f00', '#7f6000', 'cyan', 'green', 'black'][cls_bbps])
     draw.text((x + block_height // 4, y), f'{cls_bbps}' if cls_bbps >= 0 else '', align='center', font=font)
-
+    os.makedirs(osp.dirname(imageSavePath), exist_ok=True)
     frame.save(imageSavePath)
     return frame
 

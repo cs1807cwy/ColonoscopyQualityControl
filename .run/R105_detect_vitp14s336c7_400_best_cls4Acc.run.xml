@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="R105_detect_vitp14s336c7_400" type="PythonConfigurationType" factoryName="Python" folderName="Cls-Spec Train Model">
+  <configuration default="false" name="R105_detect_vitp14s336c7_400_best_cls4Acc" type="PythonConfigurationType" factoryName="Python" folderName="Cls-Spec Train Model">
     <output_file path="$PROJECT_DIR$/out.log" is_save="true" />
     <module name="ColonoscopyQualityControl" />
     <option name="INTERPRETER_OPTIONS" value="" />
