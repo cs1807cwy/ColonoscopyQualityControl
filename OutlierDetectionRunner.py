@@ -11,6 +11,15 @@ import numpy as np
 import math
 from typing import List, Dict
 
+index_label = {
+    0: 'outside',
+    1: 'nonsense',
+    2: 'ileocecal',
+    3: 'bbps0',
+    4: 'bbps1',
+    5: 'bbps2',
+    6: 'bbps3',
+}
 
 def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str, step: int) -> Dict[str, float]:
     # 筛选全部具有ext指定包含后缀名的文件
