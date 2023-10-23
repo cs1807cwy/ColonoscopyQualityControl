@@ -104,11 +104,16 @@ def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
     # 要求每个标签的预测结果(0或者1)连续相同的帧数大于等于阈值threshold，否则认为这个连续范围内的帧为异常帧
     # 返回值为异常帧的起始和终止帧的索引（整个列表中的位置索引），格式为[[start1, end1], [start2, end2], ...]
     total_outlier = dict()
-    for v in sorted(os.listdir(pred_save_root)):
-        print(f"Video {v} : Frame threshold -> {frame_thresholds}")
-        pred_save_path = osp.join(pred_save_root, v, 'predict_result.json')
-        with open(pred_save_path, 'r') as f:
+    if osp.isfile(pred_save_root) and pred_save_root.endswith('.json'):
+        search_list = [pred_save_root]
+    else:
+        search_list = sorted(os.listdir(pred_save_root))
+        search_list = [osp.join(pred_save_root, v, 'predict_result.json') for v in search_list]
+    for v in search_list:
+        with open(v, 'r') as f:
             pred_result = json.load(f)
+
+        print(f"Video {osp.basename(v)} : Frame threshold -> {frame_thresholds}")
         pred_array_np = np.array([pred_result[k] for k in sorted(pred_result.keys())])
         pred_array_ori = np.transpose(pred_array_np)
 
@@ -167,7 +172,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     # extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 2)
-    call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
+    # call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
     frame_threshes = {0: 50, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3}
     total_outlier = detect_outlier_all(args.pred_save_root, frame_threshes)
     save_outlier(total_outlier, args.outlier_save_root)
