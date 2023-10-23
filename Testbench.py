@@ -4,16 +4,16 @@ import os
 import os.path as osp
 
 if __name__ == '__main__':
-    a: 0 = 1
-    print(a)
-
-    a = torch.zeros(1)
-    b = torch.ones(1)
-    print(a != b)
-    if a != b:
-        print('ne')
-
-    print(torch.compile())
+    # a: 0 = 1
+    # print(a)
+    #
+    # a = torch.zeros(1)
+    # b = torch.ones(1)
+    # print(a != b)
+    # if a != b:
+    #     print('ne')
+    #
+    # print(torch.compile())
     # path = '../aaa/bbb/ccc.txt'
     # jpath = osp.join('/mnt/data4/cwy/Test', path)
     # print(jpath)
@@ -48,3 +48,7 @@ if __name__ == '__main__':
     # cat = torch.cat([a.unsqueeze(1), out], dim=-1)
     # print('# cat:')
     # print(cat)
+
+    a = torch.tensor([1])
+    a = a.squeeze(0)
+    print(a.numpy())

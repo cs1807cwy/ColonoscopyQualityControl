@@ -191,7 +191,7 @@ class SingleClassificationDataModule(LightningDataModule):
     def __init__(
             self,
             dataset_root: str,
-            index_file_path: str,
+            index_file_path: str = None,
             resize_shape: Tuple[int, int] = (306, 306),
             center_crop_shape: Tuple[int, int] = (256, 256),
             brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
@@ -199,6 +199,7 @@ class SingleClassificationDataModule(LightningDataModule):
             saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
             batch_size: int = 16,
             num_workers: int = 0,
+            ext: List[str] = ('png', 'jpg'),
     ):
         """
         Args:
@@ -218,6 +219,7 @@ class SingleClassificationDataModule(LightningDataModule):
 
         super().__init__()
         self.dataset_root: str = dataset_root
+        self.ext: List[str] = ext
         self.index_file_path: str = index_file_path
         self.resize_shape: Tuple[int, int] = resize_shape
         self.center_crop_shape: Tuple[int, int] = center_crop_shape
@@ -230,6 +232,7 @@ class SingleClassificationDataModule(LightningDataModule):
         self.train_dataset: SingleClassificationDataSet = None
         self.validation_dataset: SingleClassificationDataSet = None
         self.test_dataset: SingleClassificationDataSet = None
+        self.predict_dataset: ColonoscopyPredictDataset = None
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
@@ -266,6 +269,13 @@ class SingleClassificationDataModule(LightningDataModule):
                 self.contrast_jitter,
                 self.saturation_jitter,
             )
+        elif stage == 'predict':
+            self.predict_dataset = ColonoscopyPredictDataset(
+                self.dataset_root,
+                self.ext,
+                self.resize_shape,
+                self.center_crop_shape,
+            )
 
     def train_dataloader(self):
         return DataLoader(
@@ -289,6 +299,13 @@ class SingleClassificationDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers)
 
+    def predict_dataloader(self):
+        return DataLoader(
+            self.predict_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
     def size(self, part=None) -> Optional[int]:
         if part == 'train' or part is None:
             return len(self.train_dataset)
@@ -302,7 +319,7 @@ class MultiClassificationDataModule(LightningDataModule):
     def __init__(
             self,
             dataset_root: str,
-            index_file_path: str,
+            index_file_path: str = None,
             resize_shape: Tuple[int, int] = (306, 306),
             center_crop_shape: Tuple[int, int] = (256, 256),
             brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
@@ -310,6 +327,7 @@ class MultiClassificationDataModule(LightningDataModule):
             saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
             batch_size: int = 16,
             num_workers: int = 0,
+            ext: List[str] = ('png', 'jpg'),
     ):
         """
         Args:
@@ -329,6 +347,7 @@ class MultiClassificationDataModule(LightningDataModule):
 
         super().__init__()
         self.dataset_root: str = dataset_root
+        self.ext: List[str] = ext
         self.index_file_path: str = index_file_path
         self.resize_shape: Tuple[int, int] = resize_shape
         self.center_crop_shape: Tuple[int, int] = center_crop_shape
@@ -341,6 +360,7 @@ class MultiClassificationDataModule(LightningDataModule):
         self.train_dataset: MultiClassificationDataSet = None
         self.validation_dataset: MultiClassificationDataSet = None
         self.test_dataset: MultiClassificationDataSet = None
+        self.predict_dataset: ColonoscopyPredictDataset = None
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
@@ -377,6 +397,13 @@ class MultiClassificationDataModule(LightningDataModule):
                 self.contrast_jitter,
                 self.saturation_jitter,
             )
+        elif stage == 'predict':
+            self.predict_dataset = ColonoscopyPredictDataset(
+                self.dataset_root,
+                self.ext,
+                self.resize_shape,
+                self.center_crop_shape,
+            )
 
     def train_dataloader(self):
         return DataLoader(
@@ -396,6 +423,13 @@ class MultiClassificationDataModule(LightningDataModule):
     def test_dataloader(self):
         return DataLoader(
             self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers)
+
+    def predict_dataloader(self):
+        return DataLoader(
+            self.predict_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers)

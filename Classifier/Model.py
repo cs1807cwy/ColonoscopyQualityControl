@@ -1,5 +1,7 @@
 import os
+import time
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -14,7 +16,7 @@ from .BaseModel import *
 class QualityClassifier(ResNet101Classifier):
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 2,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -101,6 +103,18 @@ class QualityClassifier(ResNet101Classifier):
                     os.path.join(self.hparams.save_dir,
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
                                  f'batch_{batch_idx}_{idx}_origin.png'))
+
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
+        y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
+
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
 
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
@@ -113,7 +127,7 @@ class QualityClassifier(ResNet101Classifier):
 class QualityClassifierVGG19(VGG19Classifier):
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 2,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -201,6 +215,18 @@ class QualityClassifierVGG19(VGG19Classifier):
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
                                  f'batch_{batch_idx}_{idx}_origin.png'))
 
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
+        y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
+
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
+
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
@@ -209,11 +235,10 @@ class QualityClassifierVGG19(VGG19Classifier):
     #     self.to_torchscript(f'./ModelScript/model_{type(self)}.pt', method='trace')
 
 
-
 class CleansingClassifier(ResNet101Classifier):
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -301,31 +326,42 @@ class CleansingClassifier(ResNet101Classifier):
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
-    def on_predict_epoch_start(self):
-        for k1, v1 in self.index_label.items():
-            os.makedirs(os.path.join(self.hparams.save_dir, f'{v1}'), exist_ok=True)
+    # def on_predict_epoch_start(self):
+    #     for k1, v1 in self.index_label.items():
+    #         os.makedirs(os.path.join(self.hparams.save_dir, f'{v1}'), exist_ok=True)
 
-    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[List[int], List[str]]:
-        x, ox = batch  # x是图像tensor，ox是原始图像tensor
+    # def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[List[int], List[str]]:
+    #     x, ox = batch  # x是图像tensor，ox是原始图像tensor
+    #     y_hat = self(x)
+    #
+    #     for idx, sample in enumerate(zip(x, y_hat, ox)):
+    #         img, pred_label, origin_img = sample
+    #         pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
+    #         torchvision.utils.save_image(
+    #             origin_img,
+    #             os.path.join(self.hparams.save_dir,
+    #                          f'{self.index_label[pred_idx]}',
+    #                          'frame_%06d.png' % (batch_idx * batch[0].size(0) + idx)))
+    #     pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
+    #     pred_labels = [self.index_label[k] for k in pred_label_codes]
+    #     return pred_label_codes, pred_labels
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
         y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
 
-        for idx, sample in enumerate(zip(x, y_hat, ox)):
-            img, pred_label, origin_img = sample
-            pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
-            torchvision.utils.save_image(
-                origin_img,
-                os.path.join(self.hparams.save_dir,
-                             f'{self.index_label[pred_idx]}',
-                             'frame_%06d.png' % (batch_idx * batch[0].size(0) + idx)))
-        pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
-        pred_labels = [self.index_label[k] for k in pred_label_codes]
-        return pred_label_codes, pred_labels
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
 
 
 class CleansingClassifierVGG19(VGG19Classifier):
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -413,32 +449,43 @@ class CleansingClassifierVGG19(VGG19Classifier):
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
 
-    def on_predict_epoch_start(self):
-        for k1, v1 in self.index_label.items():
-            os.makedirs(os.path.join(self.hparams.save_dir, f'{v1}'), exist_ok=True)
+    # def on_predict_epoch_start(self):
+    #     for k1, v1 in self.index_label.items():
+    #         os.makedirs(os.path.join(self.hparams.save_dir, f'{v1}'), exist_ok=True)
 
-    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[List[int], List[str]]:
-        x, ox = batch  # x是图像tensor，ox是原始图像tensor
+    # def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> Tuple[List[int], List[str]]:
+    #     x, ox = batch  # x是图像tensor，ox是原始图像tensor
+    #     y_hat = self(x)
+    #
+    #     for idx, sample in enumerate(zip(x, y_hat, ox)):
+    #         img, pred_label, origin_img = sample
+    #         pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
+    #         torchvision.utils.save_image(
+    #             origin_img,
+    #             os.path.join(self.hparams.save_dir,
+    #                          f'{self.index_label[pred_idx]}',
+    #                          'frame_%06d.png' % (batch_idx * batch[0].size(0) + idx)))
+    #     pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
+    #     pred_labels = [self.index_label[k] for k in pred_label_codes]
+    #     return pred_label_codes, pred_labels
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
         y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
 
-        for idx, sample in enumerate(zip(x, y_hat, ox)):
-            img, pred_label, origin_img = sample
-            pred_idx = int(pred_label.argmax(dim=-1).cpu().numpy())
-            torchvision.utils.save_image(
-                origin_img,
-                os.path.join(self.hparams.save_dir,
-                             f'{self.index_label[pred_idx]}',
-                             'frame_%06d.png' % (batch_idx * batch[0].size(0) + idx)))
-        pred_label_codes = list(y_hat.argmax(dim=-1).cpu().numpy())
-        pred_labels = [self.index_label[k] for k in pred_label_codes]
-        return pred_label_codes, pred_labels
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
 
 
 class IleocecalClassifier(ResNet101Classifier):
 
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -525,6 +572,18 @@ class IleocecalClassifier(ResNet101Classifier):
                     os.path.join(self.hparams.save_dir,
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
                                  f'batch_{batch_idx}_{idx}_origin.png'))
+
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
+        y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
+
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
 
     def on_test_epoch_end(self):
         true_positive = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[0]}']
@@ -539,7 +598,7 @@ class IleocecalClassifierVGG19(VGG19Classifier):
 
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 3,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -627,6 +686,18 @@ class IleocecalClassifierVGG19(VGG19Classifier):
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
                                  f'batch_{batch_idx}_{idx}_origin.png'))
 
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
+        y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
+
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
+
     def on_test_epoch_end(self):
         true_positive = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[0]}']
         true_negative = self.confuse_matrix[f'pred_{self.index_label[0]}_gt_{self.index_label[1]}']
@@ -639,7 +710,7 @@ class IleocecalClassifierVGG19(VGG19Classifier):
 class PositionClassifier(ResNet101Classifier):
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 2,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -726,6 +797,18 @@ class PositionClassifier(ResNet101Classifier):
                     os.path.join(self.hparams.save_dir,
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
                                  f'batch_{batch_idx}_{idx}_origin.png'))
+
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
+        y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
+
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
 
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)
@@ -738,7 +821,7 @@ class PositionClassifier(ResNet101Classifier):
 class PositionClassifierVGG19(VGG19Classifier):
     def __init__(
             self,
-            input_shape: Tuple[int, int] = (256, 256),
+            input_shape: Tuple[int, int] = (336, 336),
             num_classes: int = 2,
             batch_size: int = 16,
             lr: float = 1e-4,
@@ -825,6 +908,18 @@ class PositionClassifierVGG19(VGG19Classifier):
                     os.path.join(self.hparams.save_dir,
                                  f'pred_{self.index_label[pred_idx]}_gt_{self.index_label[gt_idx]}',
                                  f'batch_{batch_idx}_{idx}_origin.png'))
+
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> int:
+        x, _ = batch
+        y_hat = self(x)
+        return y_hat.argmax(dim=-1).squeeze(dim=0).cpu().item()
+
+    def on_predict_start(self) -> None:
+        self.st_time = time.perf_counter()
+
+    def on_predict_end(self) -> None:
+        ed_time = time.perf_counter()
+        print(f'Predict time: {ed_time - self.st_time:.3f}s')
 
     def on_test_epoch_end(self):
         self.log_dict(self.confuse_matrix, logger=True, sync_dist=True, reduce_fx=torch.sum)

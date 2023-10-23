@@ -269,7 +269,6 @@ class ColonoscopyPredictDataset(Dataset):
             center_crop_shape: Tuple[高, 宽] 中心裁剪图像的目标规格，用于截去图像周围的黑边
             dry_run: 测试模式
         """
-
         self.image_root_dir: str = osp.abspath(image_root_dir)
         self.items: List[str] = []
 
@@ -325,7 +324,7 @@ class SingleClassificationDataSet(Dataset):
             transforms.RandomVerticalFlip(),
             transforms.RandomApply([transforms.RandomRotation([90, 90])])
         ])
-        self.transform_validation_test = transforms.Compose([
+        self.transform_val_test = transforms.Compose([
             transforms.ToTensor(),
             # 缩放和截去黑边
             transforms.Resize(resize_shape, antialias=True),
@@ -353,7 +352,7 @@ class SingleClassificationDataSet(Dataset):
         if self.dataset_mode == 'train':
             item: torch.Tensor = self.transform_train(image)
         else:  # validation & test
-            item: torch.Tensor = self.transform_validation_test(image)
+            item: torch.Tensor = self.transform_val_test(image)
         if self.dataset_mode == 'test':
             origin_item = transforms.ToTensor()(image)
             return item, label, origin_item
