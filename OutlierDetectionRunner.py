@@ -1,98 +1,10 @@
 import argparse
 import json
-import os
-import os.path as osp
-import shutil
 
-import cv2
-import glob
-import subprocess
+from VideoUtil import *
+from PredictWrapper import *
 import numpy as np
-import math
 from typing import List, Dict
-
-index_label = {
-    0: 'outside',
-    1: 'nonsense',
-    2: 'ileocecal',
-    3: 'bbps0',
-    4: 'bbps1',
-    5: 'bbps2',
-    6: 'bbps3',
-}
-
-def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str, step: int) -> Dict[str, float]:
-    # 筛选全部具有ext指定包含后缀名的文件
-    items = []
-    video = dict()
-    for e in input_video_ext:
-        items += glob.glob(osp.join(input_video_root, '**', f'*.{e}'), recursive=True)
-        items = sorted(items)
-    for item in items:
-        name = item.split('/')[-1].split('.')[0]
-        frame_save_path = osp.join(frame_save_root, name)
-        os.makedirs(frame_save_path, exist_ok=True)
-        cap = cv2.VideoCapture(item)
-        frame_count = 0
-        success = True
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        print(f"Video {name} : FPS is {fps}.")
-        video[name] = fps
-        while success:
-            success, frame = cap.read()
-            if not success:
-                break
-            if frame_count % step == 0:
-                cv2.imwrite(osp.join(frame_save_path, f"{frame_count:06d}.png"), frame)
-            frame_count += 1
-        cap.release()
-        print(f"Video {name} : Split into {frame_count} frames.")
-    return video
-
-
-def call_predict_once(exp_name: str, ckpt_path: str, batch_size: int, input_image_root: str,
-                      pred_save_path: str) -> int:
-    # 调用模型进行预测
-    # QuickLauncher.py
-    # --stage predict --batch_size 1 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_ileoPrec_epoch=109_label_ileocecal_prec_thresh=0.9812.ckpt --accelerator gpu --strategy ddp --devices 2 --log_every_n_steps 10 --experiment_name R105_predict_fps_vitp14s336c7_400 --version test_predict --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_root ../Datasets/pred_img --resize_shape 336 336 --center_crop_shape 336 336 --num_workers 12 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --pred_save_path Experiment/R105_predict_fps_vitp14s336c7_400/predict_result.json --num_heads 8 --attention_lambda 0.3 --thresh 0.5
-
-    p = subprocess.run([
-        # '/home/shr/.conda/envs/cwypy310pt20/bin/python'
-        "/mnt/data4/cwy/Anaconda/envs/cwypy310pt20/bin/python", 'QuickLauncher.py',
-        '--stage', 'predict',
-        '--batch_size', str(batch_size),
-        '--ckpt_path', ckpt_path,
-        '--accelerator', 'gpu',
-        '--strategy', 'ddp',
-        '--devices', '6',
-        '--log_every_n_steps', '10',
-        '--experiment_name', exp_name,
-        '--version', 'detect',
-        '--tqdm_refresh_rate', '20',
-        '--data_class_path', 'MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule',
-        '--data_root', input_image_root,
-        '--resize_shape', '336', '336',
-        '--center_crop_shape', '336', '336',
-        '--num_workers', '12',
-        '--model_class_path', 'MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7',
-        '--pred_save_path', pred_save_path,
-        '--num_heads', '8',
-        '--attention_lambda', '0.3',
-        '--thresh', '0.5'
-    ])
-    return p.returncode
-
-
-def call_predict_all(exp_name: str, ckpt_path: str, batch_size: int, frame_save_root: str, pred_save_root: str):
-    for v in sorted((os.listdir(frame_save_root))):
-        pred_save_path = osp.join(pred_save_root, v, 'predict_result.json')
-        if osp.exists(pred_save_path):
-            os.remove(pred_save_path)
-        os.makedirs(osp.dirname(pred_save_path), exist_ok=True)
-        r_code = call_predict_once(exp_name, ckpt_path, batch_size, osp.join(frame_save_root, v), pred_save_path)
-        if r_code == 0:
-            shutil.copy2(pred_save_path, osp.join(pred_save_root, v, f'predict_result_{osp.basename(ckpt_path)}.json'))
-        print(f"Video {v} : Predict return {r_code}.")
 
 
 def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
@@ -104,7 +16,7 @@ def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
     # 要求每个标签的预测结果(0或者1)连续相同的帧数大于等于阈值threshold，否则认为这个连续范围内的帧为异常帧
     # 返回值为异常帧的起始和终止帧的索引（整个列表中的位置索引），格式为[[start1, end1], [start2, end2], ...]
     total_outlier = dict()
-    if osp.isfile(pred_save_root) and pred_save_root.endswith('.json'):
+    if osp.isfile(pred_save_root):
         search_list = [pred_save_root]
     else:
         search_list = sorted(os.listdir(pred_save_root))
@@ -166,13 +78,12 @@ if __name__ == '__main__':
     parser.add_argument('-psr', '--pred_save_root', type=str, help='预测结果保存路径')
     parser.add_argument('-osr', '--outlier_save_root', type=str, help='异常帧保存路径')
     parser.add_argument('-cp', '--ckpt_path', type=str, help='模型权重路径')
-    parser.add_argument('-dev', '--devices', type=str, nargs='+', default=[0], help='使用的GPU设备')
-    parser.add_argument('-bs', '--batch_size', type=int, default=1, help='批大小')
+    parser.add_argument('-dev', '--devices', type=str, default=0, help='使用的GPU设备')
     parser.add_argument('-ots', '--outlier_thresh_scale', type=float, default=0.11, help='异常帧阈值缩放倍率')
 
     args = parser.parse_args()
-    # extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 2)
-    # call_predict_all(args.experiment_name, args.ckpt_path, args.batch_size, args.frame_save_root, args.pred_save_root)
+    #extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 2)
+    call_predict_all(args.experiment_name, args.devices, args.ckpt_path, args.frame_save_root, args.pred_save_root)
     frame_threshes = {0: 50, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3}
     total_outlier = detect_outlier_all(args.pred_save_root, frame_threshes)
     save_outlier(total_outlier, args.outlier_save_root)

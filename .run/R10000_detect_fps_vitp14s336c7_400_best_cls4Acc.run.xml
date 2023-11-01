@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="R105_detect_vitp14s336c7_400_best_cls4Acc" type="PythonConfigurationType" factoryName="Python" folderName="Cls-Spec Train Model">
+  <configuration default="false" name="R10000_detect_fps_vitp14s336c7_400_best_cls4Acc" type="PythonConfigurationType" factoryName="Python" folderName="Cls-Spec Train Model">
     <output_file path="$PROJECT_DIR$/out.log" is_save="true" />
     <module name="ColonoscopyQualityControl" />
     <option name="INTERPRETER_OPTIONS" value="" />
@@ -13,8 +13,8 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/OutlierDetection.py" />
-    <option name="PARAMETERS" value="--experiment_name R105_detect_fps_vitp14s336c7_40 --input_video_root ../Datasets/VideoHYL --frame_save_root Experiment/R105_detect_fps_vitp14s336c7_40/frames --pred_save_root Experiment/R105_detect_fps_vitp14s336c7_40/predicts --outlier_save_root Experiment/R105_detect_fps_vitp14s336c7_40/outliers --ckpt_path ../ColonoscopyQualityControl/Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/OutlierDetectionRunner.py" />
+    <option name="PARAMETERS" value="--experiment_name R10000_detect_fps_vitp14s336c7 --input_video_root ../Datasets/video_samples/real_sceen_test --frame_save_root Experiment/R10000_detect_fps_vitp14s336c7/frames --pred_save_root Experiment/R10000_detect_fps_vitp14s336c7/predicts --outlier_save_root Experiment/R10000_detect_fps_vitp14s336c7/outliers --ckpt_path ../ColonoscopyQualityControl/Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt --devices 2" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
