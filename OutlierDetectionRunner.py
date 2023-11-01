@@ -24,8 +24,8 @@ def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
     for v in search_list:
         with open(v, 'r') as f:
             pred_result = json.load(f)
-
-        print(f"Video {osp.basename(v)} : Frame threshold -> {frame_thresholds}")
+        video_name = osp.basename(osp.dirname(v))
+        print(f"Video {video_name} : Frame threshold -> {frame_thresholds}")
         pred_array_np = np.array([pred_result[k] for k in sorted(pred_result.keys())])
         pred_array_ori = np.transpose(pred_array_np)
 
@@ -60,13 +60,18 @@ def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
                     curr_start = j
                     curr_end = j
             curr_video_outlier[i] = curr_label_outlier
-        total_outlier[v] = curr_video_outlier
+        total_outlier[video_name] = curr_video_outlier
     return total_outlier
 
 
-def save_outlier(outlier_result: Dict[str, Dict[int, Dict[int, List[List[int]]]]], outlier_save_root: str):
+def save_outlier_all(outlier_result: Dict[str, Dict[int, Dict[int, List[List[int]]]]], outlier_save_root: str):
     os.makedirs(outlier_save_root, exist_ok=True)
-    json.dump(outlier_result, open(osp.join(outlier_save_root, 'outlier_result.json'), 'w'), indent=2)
+    # json.dump(outlier_result, open(osp.join(outlier_save_root, 'outlier_result.json'), 'w'), indent=2)
+    for video in outlier_result:
+        video_outlier = outlier_result[video]
+        video_outlier_path = osp.join(outlier_save_root, video)
+        os.makedirs(video_outlier_path, exist_ok=True)
+        json.dump(video_outlier, open(osp.join(video_outlier_path, 'outlier_result.json'), 'w'), indent=2)
 
 
 if __name__ == '__main__':
@@ -83,7 +88,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     #extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 2)
-    call_predict_all(args.experiment_name, args.devices, args.ckpt_path, args.frame_save_root, args.pred_save_root)
+    #call_predict_all(args.experiment_name, args.devices, args.ckpt_path, args.frame_save_root, args.pred_save_root)
     frame_threshes = {0: 50, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3}
     total_outlier = detect_outlier_all(args.pred_save_root, frame_threshes)
-    save_outlier(total_outlier, args.outlier_save_root)
+    save_outlier_all(total_outlier, args.outlier_save_root)
