@@ -6,6 +6,8 @@ def merge_outside_outliers(idx_101, idx_010):
     idx_ab = []
     idx_ab.extend(idx_101)
     idx_ab.extend(idx_010)
+    if len(idx_ab) == 0:
+        return idx_ab
     idx_ab.sort(key=lambda x: x[0])
     idx_merged = [idx_ab.pop(0)]
     for it in idx_ab:
@@ -28,7 +30,7 @@ def fix_outliers_idx(pred_origin, outlier_list, val_func):
 def val_reverse_outside(pred, idx_item, now_i):
     a, b = idx_item
     if pred[a][0].item() == 0:
-        if pred[now_i][0].item() == 1 or pred[now_i][1].item() == 1:
+        if pred[now_i][0].item() == 1 or pred[now_i][1].item() == 1 or a == 0:
             print(f'Fix {idx_item}: {now_i} not change')
             return pred[now_i].clone().detach()
         else:

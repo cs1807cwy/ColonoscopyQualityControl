@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 
 from VideoUtil import *
 from PredictWrapper import *
@@ -7,7 +8,7 @@ import numpy as np
 from typing import List, Dict
 
 
-def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
+def detect_outlier_all(pred_save_root: str, std25_frame_thresholds: dict, video_info: dict) -> \
         Dict[str, Dict[int, Dict[int, List[List[int]]]]]:
     # 读取预测结果，进行异常检测
     # predict_result.json 格式：
@@ -21,10 +22,18 @@ def detect_outlier_all(pred_save_root: str, frame_thresholds: dict) -> \
     else:
         search_list = sorted(os.listdir(pred_save_root))
         search_list = [osp.join(pred_save_root, v, 'predict_result.json') for v in search_list]
+
     for v in search_list:
         with open(v, 'r') as f:
             pred_result = json.load(f)
         video_name = osp.basename(osp.dirname(v))
+
+        # 根据实际帧率计算帧阈值, video_info的格式为{video_name: fps}, std25_frame_thresholds表示是25fps时的帧阈值
+        video_fps = video_info[video_name]
+        frame_thresholds = dict()
+        for k in std25_frame_thresholds:
+            frame_thresholds[k] = math.ceil(std25_frame_thresholds[k] * video_fps / 25.0)
+
         print(f"Video {video_name} : Frame threshold -> {frame_thresholds}")
         pred_array_np = np.array([pred_result[k] for k in sorted(pred_result.keys())])
         pred_array_ori = np.transpose(pred_array_np)
@@ -84,11 +93,12 @@ if __name__ == '__main__':
     parser.add_argument('-osr', '--outlier_save_root', type=str, help='异常帧保存路径')
     parser.add_argument('-cp', '--ckpt_path', type=str, help='模型权重路径')
     parser.add_argument('-dev', '--devices', type=str, default=0, help='使用的GPU设备')
-    parser.add_argument('-ots', '--outlier_thresh_scale', type=float, default=0.11, help='异常帧阈值缩放倍率')
+    # parser.add_argument('-ots', '--outlier_thresh_scale', type=float, default=0.11, help='异常帧阈值缩放倍率')
 
     args = parser.parse_args()
-    #extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 2)
-    #call_predict_all(args.experiment_name, args.devices, args.ckpt_path, args.frame_save_root, args.pred_save_root)
-    frame_threshes = {0: 50, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3}
-    total_outlier = detect_outlier_all(args.pred_save_root, frame_threshes)
+    video_info = extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 1)
+    print(video_info)
+    call_predict_all(args.experiment_name, args.devices, args.ckpt_path, args.frame_save_root, args.pred_save_root, video_info)
+    std25_frame_threshes = {0: 100, 1: 6, 2: 6, 3: 6, 4: 6, 5: 6, 6: 6}
+    total_outlier = detect_outlier_all(args.pred_save_root, std25_frame_threshes, video_info)
     save_outlier_all(total_outlier, args.outlier_save_root)

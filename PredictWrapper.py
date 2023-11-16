@@ -3,6 +3,7 @@ import os.path as osp
 import shutil
 import subprocess
 import sys
+from typing import Dict
 
 
 def call_predict_once(exp_name: str, devices: str, ckpt_path: str, input_image_root: str,
@@ -38,8 +39,12 @@ def call_predict_once(exp_name: str, devices: str, ckpt_path: str, input_image_r
 
 
 def call_predict_all(exp_name: str, devices: str, ckpt_path: str, frame_save_root: str,
-                     pred_save_root: str):
-    for v in sorted(os.listdir(frame_save_root)):
+                     pred_save_root: str, video_info: Dict[str, float]):
+    if video_info is None:
+        video_info = dict()
+        for v in sorted(os.listdir(frame_save_root)):
+            video_info[v] = -1
+    for v in sorted(video_info.keys()):
         pred_save_path = osp.join(pred_save_root, v, 'predict_result.json')
         if osp.exists(pred_save_path):
             os.remove(pred_save_path)
