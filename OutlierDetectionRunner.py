@@ -29,6 +29,9 @@ def detect_outlier_all(pred_save_root: str, std25_frame_thresholds: dict, video_
         video_name = osp.basename(osp.dirname(v))
 
         # 根据实际帧率计算帧阈值, video_info的格式为{video_name: fps}, std25_frame_thresholds表示是25fps时的帧阈值
+        if video_name not in video_info:
+            print(f"Video {video_name} not in video_info, skip")
+            continue
         video_fps = video_info[video_name]
         frame_thresholds = dict()
         for k in std25_frame_thresholds:
