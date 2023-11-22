@@ -66,7 +66,7 @@ input_shape = (224, 224)  # 与center_crop_shape保持一致
 num_heads = 8
 attention_lambda = 0.3
 num_classes = 7
-thresh = 0.5
+thresh = [0.5]
 lr = 0.0001
 epochs = max_epochs
 momentum = 0.9
@@ -472,7 +472,7 @@ if __name__ == '__main__':
     parser.add_argument('-nh', '--num_heads', type=int, default=num_heads, choices=[1, 2, 4, 6, 8],
                         help='输出头（不同温度T）数量')
     parser.add_argument('-al', '--attention_lambda', type=float, default=attention_lambda, help='输出头类特征权重')
-    parser.add_argument('-thr', '--thresh', type=float, default=thresh, help='逐类标签置信度阈值')
+    parser.add_argument('-thr', '--thresh', type=float, nargs='+', default=thresh, help='逐类标签置信度阈值')
     parser.add_argument('-lr', '--lr', type=float, default=lr, help='SGD优化器学习率')
     parser.add_argument('-mom', '--momentum', type=float, default=momentum, help='SGD优化器动量')
     parser.add_argument('-wd', '--weight_decay', type=float, default=weight_decay, help='SGD优化器权重衰退')

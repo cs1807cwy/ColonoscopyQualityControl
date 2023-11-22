@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import time
+import warnings
 
 import math
 import torch
@@ -22,7 +23,7 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
             num_heads: int = 8,  # heads number in [1, 2, 4, 6, 8]
             attention_lambda: float = 0.3,
             num_classes: int = 7,
-            thresh: float = 0.5,
+            thresh: Union[float, List[float]] = 0.5,
             batch_size: int = 16,
             lr: float = 0.0001,
             epochs: int = 1000,
@@ -37,8 +38,36 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.thresh = thresh
         self.input_shape = input_shape
+
+        # parse thresh for each task
+        self.outside_01_thresh: float = 0.5
+        self.nonsense_01_thresh: float = 0.5
+        self.ileocecal_01_thresh: float = 0.5
+        self.cleansing_01_thresh: float = 0.5
+        # 3 thresh as list [outside, nonsense, ileocecal]
+        if isinstance(thresh, list):
+            if len(thresh) >= 3:
+                self.outside_01_thresh = thresh[0]
+                self.nonsense_01_thresh = thresh[1]
+                self.ileocecal_01_thresh = thresh[2]
+                self.cleansing_01_thresh = 0.5 if len(thresh) < 4 else thresh[3]
+            elif len(thresh) > 0:
+                self.outside_01_thresh = thresh[0]
+                self.nonsense_01_thresh = thresh[0]
+                self.ileocecal_01_thresh = thresh[0]
+                self.cleansing_01_thresh = thresh[0]
+            else:
+                warnings.warn('thresh list donot have content, use 0.5')
+        # thresh as only one value
+        elif isinstance(thresh, float) or isinstance(thresh, int):
+            self.outside_01_thresh = float(thresh)
+            self.nonsense_01_thresh = float(thresh)
+            self.ileocecal_01_thresh = float(thresh)
+            self.cleansing_01_thresh = float(thresh)
+        else:
+            warnings.warn('thresh type not correct, use 0.5')
+        self.thresh_vec = [self.outside_01_thresh, self.nonsense_01_thresh, self.ileocecal_01_thresh] + [self.cleansing_01_thresh] * 4
 
         # networks
         self.backbone = ViT_L_Patch14_336_Extractor(True)
@@ -87,8 +116,9 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         self.log('train_loss_cls', loss_cls, prog_bar=True, logger=True, sync_dist=True)
 
         # 计算总体train_mean_acc
-        label_pred_tf = torch.ge(F.sigmoid(pred), self.hparams.thresh)
-        label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
+        thresh_mat = torch.tile(torch.tensor(self.thresh_vec), (batch.size(0), 1))
+        label_pred_tf = torch.ge(F.sigmoid(pred), thresh_mat)
+        label_gt_tf = torch.ge(label_gt, thresh_mat)
         mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log(f'train_thresh_mean_acc', mean_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
@@ -141,9 +171,10 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         logit = F.sigmoid(self(image))
 
         # 计算val_acc
+        thresh_mat = torch.tile(torch.tensor(self.thresh_vec), (batch.size(0), 1))
         # label_pred_tf: BoolTensor[B, 7] = B * [outside?, nonsense?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
-        label_pred_tf = torch.ge(logit, self.hparams.thresh)
-        label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
+        label_pred_tf = torch.ge(logit, thresh_mat)
+        label_gt_tf = torch.ge(label_gt, thresh_mat)
         mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log('val_thresh_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
 
@@ -151,9 +182,9 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         in_out_logit = logit[:, 0]
         # 体内外标签: BoolTensor[B]
         # outside时为True
-        label_in_out_pred = torch.ge(in_out_logit, self.hparams.thresh)
+        label_in_out_pred = torch.ge(in_out_logit, self.outside_01_thresh)
         # 体内外gt: BoolTensor[B]
-        label_in_out_gt = torch.ge(label_gt[:, 0], self.hparams.thresh)
+        label_in_out_gt = torch.ge(label_gt[:, 0], self.outside_01_thresh)
         self.confuse_matrix[f'label_{self.index_label[0]}_TP'] += float((label_in_out_pred & label_in_out_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[0]}_FP'] += float((label_in_out_pred & ~label_in_out_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[0]}_FN'] += float((~label_in_out_pred & label_in_out_gt).float().sum().cpu())
@@ -163,10 +194,10 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         nonsense_logit = logit[:, 1]
         # 坏帧标签: BoolTensor[B]
         # nonsense时为True
-        label_nonsense_pred = torch.ge(nonsense_logit, self.hparams.thresh)
+        label_nonsense_pred = torch.ge(nonsense_logit, self.nonsense_01_thresh)
         # 帧质量gt: BoolTensor[B]
         # pred或gt是outside时不计入总数
-        label_nonsense_gt = torch.ge(label_gt[:, 1], self.hparams.thresh)
+        label_nonsense_gt = torch.ge(label_gt[:, 1], self.nonsense_01_thresh)
         flag = ~label_in_out_pred & ~label_in_out_gt
         self.confuse_matrix[f'label_{self.index_label[1]}_TP'] += float((flag & label_nonsense_pred & label_nonsense_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[1]}_FP'] += float((flag & label_nonsense_pred & ~label_nonsense_gt).float().sum().cpu())
@@ -176,9 +207,9 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         # 回盲部logit: FloatTensor[B]
         ileo_logit = logit[:, 2]
         # 回盲部标签: BoolTensor[B]
-        label_ileo_pred = torch.ge(ileo_logit, self.hparams.thresh)
+        label_ileo_pred = torch.ge(ileo_logit, self.ileocecal_01_thresh)
         # 回盲部gt: BoolTensor[B]
-        label_ileo_gt = torch.ge(label_gt[:, 2], self.hparams.thresh)
+        label_ileo_gt = torch.ge(label_gt[:, 2], self.ileocecal_01_thresh)
         flag = ~label_in_out_pred & ~label_in_out_gt & ~label_nonsense_pred & ~label_nonsense_gt
         self.confuse_matrix[f'label_{self.index_label[2]}_TP'] += float((flag & label_ileo_pred & label_ileo_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[2]}_FP'] += float((flag & label_ileo_pred & ~label_ileo_gt).float().sum().cpu())
@@ -323,9 +354,10 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         self.count += image_id.size(0)
 
         # 计算test_acc
+        thresh_mat = torch.tile(torch.tensor(self.thresh_vec), (batch.size(0), 1))
         # label_pred_tf: BoolTensor[B, 7] = B * [nonsense?, outside?, ileocecal?, bbps0?, bbps1?, bbps2?, bbps3?]
-        label_pred_tf = torch.ge(logit, self.hparams.thresh)
-        label_gt_tf = torch.ge(label_gt, self.hparams.thresh)
+        label_pred_tf = torch.ge(logit, thresh_mat)
+        label_gt_tf = torch.ge(label_gt, thresh_mat)
         mean_acc = float(torch.eq(label_pred_tf, label_gt_tf).float().mean().cpu())
         self.log('test_thresh_mean_acc', mean_acc, prog_bar=True, logger=True, sync_dist=True)
 
@@ -333,9 +365,9 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         in_out_logit = logit[:, 0]
         # 体内外标签: BoolTensor[B]
         # outside时为True
-        label_in_out_pred = torch.ge(in_out_logit, self.hparams.thresh)
+        label_in_out_pred = torch.ge(in_out_logit, self.outside_01_thresh)
         # 体内外gt: BoolTensor[B]
-        label_in_out_gt = torch.ge(label_gt[:, 0], self.hparams.thresh)
+        label_in_out_gt = torch.ge(label_gt[:, 0], self.outside_01_thresh)
         self.confuse_matrix[f'label_{self.index_label[0]}_TP'] += float((label_in_out_pred & label_in_out_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[0]}_FP'] += float((label_in_out_pred & ~label_in_out_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[0]}_FN'] += float((~label_in_out_pred & label_in_out_gt).float().sum().cpu())
@@ -366,10 +398,10 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         nonsense_logit = logit[:, 1]
         # 坏帧标签: BoolTensor[B]
         # nonsense时为True
-        label_nonsense_pred = torch.ge(nonsense_logit, self.hparams.thresh)
+        label_nonsense_pred = torch.ge(nonsense_logit, self.nonsense_01_thresh)
         # 帧质量gt: BoolTensor[B]
         # pred或gt是outside时不计入总数
-        label_nonsense_gt = torch.ge(label_gt[:, 1], self.hparams.thresh)
+        label_nonsense_gt = torch.ge(label_gt[:, 1], self.nonsense_01_thresh)
         flag = ~label_in_out_pred & ~label_in_out_gt
         self.confuse_matrix[f'label_{self.index_label[1]}_TP'] += float((flag & label_nonsense_pred & label_nonsense_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[1]}_FP'] += float((flag & label_nonsense_pred & ~label_nonsense_gt).float().sum().cpu())
@@ -400,9 +432,9 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         # 回盲部logit: FloatTensor[B]
         ileo_logit = logit[:, 2]
         # 回盲部标签: BoolTensor[B]
-        label_ileo_pred = torch.ge(ileo_logit, self.hparams.thresh)
+        label_ileo_pred = torch.ge(ileo_logit, self.ileocecal_01_thresh)
         # 回盲部gt: BoolTensor[B]
-        label_ileo_gt = torch.ge(label_gt[:, 2], self.hparams.thresh)
+        label_ileo_gt = torch.ge(label_gt[:, 2], self.ileocecal_01_thresh)
         flag = ~label_in_out_pred & ~label_in_out_gt & ~label_nonsense_pred & ~label_nonsense_gt
         self.confuse_matrix[f'label_{self.index_label[2]}_TP'] += float((flag & label_ileo_pred & label_ileo_gt).float().sum().cpu())
         self.confuse_matrix[f'label_{self.index_label[2]}_FP'] += float((flag & label_ileo_pred & ~label_ileo_gt).float().sum().cpu())
@@ -576,18 +608,18 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         in_out_logit = logit[:, 0]
         # 体内外标签: BoolTensor[B]
         # outside时为True
-        label_in_out_pred = torch.ge(in_out_logit, self.hparams.thresh)
+        label_in_out_pred = torch.ge(in_out_logit, self.outside_01_thresh)
 
         # 帧质量logit: FloatTensor[B]
         nonsense_logit = logit[:, 1]
         # 坏帧标签: BoolTensor[B]
         # nonsense时为True
-        label_nonsense_pred = ~label_in_out_pred & torch.ge(nonsense_logit, self.hparams.thresh)
+        label_nonsense_pred = ~label_in_out_pred & torch.ge(nonsense_logit, self.nonsense_01_thresh)
 
         # 回盲部logit: FloatTensor[B]
         ileo_logit = logit[:, 2]
         # 回盲部标签: BoolTensor[B]
-        label_ileo_pred = ~label_in_out_pred & ~label_nonsense_pred & torch.ge(ileo_logit, self.hparams.thresh)
+        label_ileo_pred = ~label_in_out_pred & ~label_nonsense_pred & torch.ge(ileo_logit, self.ileocecal_01_thresh)
 
         # 清洁度logit: FloatTensor[B, 4]
         cls_logit = logit[:, 3:]
@@ -628,18 +660,18 @@ class MultiLabelClassifier_ViT_L_Patch14_336_Class7(LightningModule):
         in_out_logit = logit[:, 0]
         # 体内外标签: BoolTensor[B]
         # outside时为True
-        label_in_out_pred = torch.ge(in_out_logit, self.thresh)
+        label_in_out_pred = torch.ge(in_out_logit, self.outside_01_thresh)
 
         # 帧质量logit: FloatTensor[B]
         nonsense_logit = logit[:, 1]
         # 坏帧标签: BoolTensor[B]
         # nonsense时为True
-        label_nonsense_pred = ~label_in_out_pred & torch.ge(nonsense_logit, self.thresh)
+        label_nonsense_pred = ~label_in_out_pred & torch.ge(nonsense_logit, self.nonsense_01_thresh)
 
         # 回盲部logit: FloatTensor[B]
         ileo_logit = logit[:, 2]
         # 回盲部标签: BoolTensor[B]
-        label_ileo_pred = ~label_in_out_pred & ~label_nonsense_pred & torch.ge(ileo_logit, self.thresh)
+        label_ileo_pred = ~label_in_out_pred & ~label_nonsense_pred & torch.ge(ileo_logit, self.ileocecal_01_thresh)
 
         # 清洁度logit: FloatTensor[B, 4]
         cls_logit = logit[:, 3:]
