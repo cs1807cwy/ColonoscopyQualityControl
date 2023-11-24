@@ -61,10 +61,10 @@ def val_reverse_nonsense_101(pred, idx_item, now_i):
 def post_process(pred_to_fix, outlier_json_path, do_fix_outside, do_fix_nonsense):
     outliers = json.load(open(outlier_json_path))
 
-    outside_outliers_101 = outliers['0']['0']
-    outside_outliers_010 = outliers['0']['1']
-    nonsense_outliers_101 = outliers['1']['0']
-    nonsense_outliers_010 = outliers['1']['1']
+    outside_outliers_010 = outliers['0']['0']
+    outside_outliers_101 = outliers['0']['1']
+    nonsense_outliers_010 = outliers['1']['0']
+    nonsense_outliers_101 = outliers['1']['1']
 
     outside_outliers = merge_outside_outliers(outside_outliers_101, outside_outliers_010)
     nonsense_outliers = nonsense_outliers_101

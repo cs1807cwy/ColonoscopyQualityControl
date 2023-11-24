@@ -33,7 +33,7 @@ def call_predict_once(exp_name: str, devices: str, ckpt_path: str, input_image_r
         '--pred_save_path', pred_save_path,
         '--num_heads', '8',
         '--attention_lambda', '0.3',
-        '--thresh', '0.5'
+        '--thresh', '0.5', '0.5', '0.5', '0.5'
     ])
     return p.returncode
 

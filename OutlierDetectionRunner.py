@@ -35,7 +35,9 @@ def detect_outlier_all(pred_save_root: str, std25_frame_thresholds: dict, video_
         video_fps = video_info[video_name]
         frame_thresholds = dict()
         for k in std25_frame_thresholds:
-            frame_thresholds[k] = math.ceil(std25_frame_thresholds[k] * video_fps / 25.0)
+            frame_thresholds[k] = (
+                math.ceil(std25_frame_thresholds[k][0] * video_fps / 25.0),
+                math.ceil(std25_frame_thresholds[k][1] * video_fps / 25.0))
 
         print(f"Video {video_name} : Frame threshold -> {frame_thresholds}")
         pred_array_np = np.array([pred_result[k] for k in sorted(pred_result.keys())])
@@ -50,8 +52,8 @@ def detect_outlier_all(pred_save_root: str, std25_frame_thresholds: dict, video_
         curr_video_outlier = dict()
         for i in range(pred_array_ori.shape[0]):
             # 求连续相同的0片段和1片段的范围，并判断是否大于等于阈值
-            curr_frame_threshold = frame_thresholds[i]
-            curr_label_outlier = {0: [], 1: []}
+            curr_frame_threshold_101, curr_frame_threshold_010 = frame_thresholds[i]
+            curr_label_outlier = {0: [], 1: []} # 010, 101
             pred_array = np.copy(pred_array_ori)
             if i == 0:
                 pred_array[1] += pred_array[0]  # 将outside标签视为nonsense标签处理
@@ -60,10 +62,12 @@ def detect_outlier_all(pred_save_root: str, std25_frame_thresholds: dict, video_
             curr_start = 0
             curr_end = 0
             for j in range(pred_array.shape[1]):
+                # 计数，修改终止帧号
                 if pred_array[i, j] == curr_label:
                     curr_end = j
                 else:
-                    if curr_end - curr_start + 1 <= curr_frame_threshold:
+                    # 计数结束
+                    if curr_end - curr_start + 1 <= (curr_frame_threshold_010 if curr_label == 0 else curr_frame_threshold_101):
                         if curr_label == 0:
                             curr_label_outlier[0].append([curr_start, curr_end])
                         else:
@@ -102,6 +106,6 @@ if __name__ == '__main__':
     video_info = extract_frames(args.input_video_root, args.input_video_ext, args.frame_save_root, 1)
     print(video_info)
     call_predict_all(args.experiment_name, args.devices, args.ckpt_path, args.frame_save_root, args.pred_save_root, video_info)
-    std25_frame_threshes = {0: 100, 1: 6, 2: 6, 3: 6, 4: 6, 5: 6, 6: 6}
+    std25_frame_threshes = {0: (100, 6), 1: (6, 6), 2: (6, 6), 3: (6, 6), 4: (6, 6), 5: (6, 6), 6: (6, 6)}
     total_outlier = detect_outlier_all(args.pred_save_root, std25_frame_threshes, video_info)
     save_outlier_all(total_outlier, args.outlier_save_root)
