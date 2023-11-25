@@ -244,17 +244,23 @@ class MultiLabelClassifyLauncher:
                 datamodule=data,
                 ckpt_path=self.ckpt_path
             )
+
+            # 存储结果Json
             if self.pred_save_path is not None:
                 os.makedirs(osp.dirname(self.pred_save_path), exist_ok=True)
+                result_dict = dict()
+                result_list = [i[1].type(torch.int).tolist()[j] for i in pred for j in
+                               range(len(i[1].type(torch.int).tolist()))]
+                for i, v in enumerate(sorted(os.listdir(self.data_root))):
+                    result_dict[v] = result_list[i]
                 with open(self.pred_save_path, 'w') as f:
-                    result_dict = dict()
-                    result_list = [i[1].type(torch.int).tolist()[j] for i in pred for j in
-                                   range(len(i[1].type(torch.int).tolist()))]
-                    for i, v in enumerate(sorted(os.listdir(self.data_root))):
-                        result_dict[v] = result_list[i]
                     json.dump(result_dict, f, indent=2)
             else:
                 warnings.warn('pred_save_path is not specified, abort saving')
+
+            # 返回模型原始预测结果
+            return pred
+
         elif stage == 'export_model_torch_script':
             if self.model_save_path is not None:
                 os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
@@ -277,6 +283,7 @@ class MultiLabelClassifyLauncher:
                 print(model.device)
             else:
                 warnings.warn('model_save_path is not specified, abort exporting')
+        return None
 
 
 def print_args(parser: Union[str, argparse.ArgumentParser], args: argparse.Namespace, only_non_defaut: bool = False):

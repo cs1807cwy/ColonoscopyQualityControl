@@ -8,8 +8,8 @@
 """
 
 """
-    预测标签解析 json --> signal mat(numpy.ndarray)
-    json --> Mat [4, frame_count]
+    预测标签解析 raw model predict output --> signal mat(numpy.ndarray)
+    raw model predict output --> Mat [4, frame_count]
     4D label vector [outside, nonsense, ileocecal, bbps0-3] (用-1表示各标签的无效标签)
 """
 
