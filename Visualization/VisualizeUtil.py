@@ -1,11 +1,39 @@
-import PIL
+"""
+    可视化功能函数
+    可视化相关的辅助函数都在此实现：
+        1.视频拆帧
+        2.标签渲染到帧
+"""
+
 from PIL import Image, ImageDraw, ImageFont
+from typing import Dict, List, Union, Tuple
 import os
 import os.path as osp
 import cv2
 
+""" 
+    视频拆帧
+"""
 
-def DrawLabelColorBlockOnFrame(imageSrcPath: str, imageSavePath: str, **kwarg) -> Image:
+
+def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str, step: int) -> Dict[str, float]:
+    # TODO
+    pass
+
+
+""" 
+    将标签渲染到帧
+    参数 labels: 形如
+    {
+        'outside': True,
+        'nonsense': True,
+        'ileocecal': True,
+        'bbps': 3
+    }
+"""
+
+
+def draw_label_color_block_on_frame(imageSrcPath: str, imageSavePath: str, **labels) -> Image:
     frame: Image = Image.open(imageSrcPath)
     height = frame.height
     width = frame.width
@@ -17,25 +45,25 @@ def DrawLabelColorBlockOnFrame(imageSrcPath: str, imageSavePath: str, **kwarg) -
 
     # 绘制 outside 标签
     x, y = (0, 0)
-    is_outside: bool = kwarg['outside']
+    is_outside: bool = labels['outside']
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='blue' if is_outside else 'black')
     draw.text((x, y), '外' if is_outside else '', align='center', font=font)
 
     # 绘制 nonsense 标签
     y += block_height
-    is_nonsense: bool = kwarg['nonsense']
+    is_nonsense: bool = labels['nonsense']
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='orange' if is_nonsense else 'black')
     draw.text((x, y), '坏' if is_nonsense else '', align='center', font=font)
 
     # 绘制 ileocecal 标签
     y += block_height
-    is_ileocecal: bool = kwarg['ileocecal']
+    is_ileocecal: bool = labels['ileocecal']
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='red' if is_ileocecal else 'black')
     draw.text((x, y), '盲' if is_ileocecal else '', align='center', font=font)
 
     # 绘制 bbps 标签
     y += block_height
-    cls_bbps: int = kwarg['bbps']
+    cls_bbps: int = labels['bbps']
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill=['#5b0f00', '#7f6000', 'cyan', 'green', 'black'][cls_bbps])
     draw.text((x + block_height // 4, y), f'{cls_bbps}' if cls_bbps >= 0 else '', align='center', font=font)
     os.makedirs(osp.dirname(imageSavePath), exist_ok=True)
@@ -43,10 +71,11 @@ def DrawLabelColorBlockOnFrame(imageSrcPath: str, imageSavePath: str, **kwarg) -
     return frame
 
 
+# 测试代码
 if __name__ == '__main__':
     imageSrcPath = 'log/image.png'
     imageSavePath = 'log/out.png'
-    DrawLabelColorBlockOnFrame(
+    draw_label_color_block_on_frame(
         imageSrcPath,
         imageSavePath,
         **{'outside': True,
