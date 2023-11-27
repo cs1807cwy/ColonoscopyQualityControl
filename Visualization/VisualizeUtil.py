@@ -25,9 +25,9 @@ def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root
     将标签渲染到帧
     参数 labels: 形如
     {
-        'outside': True,
-        'nonsense': True,
-        'ileocecal': True,
+        'outside': 0,
+        'nonsense': 0,
+        'ileocecal': 0,
         'bbps': 3
     }
 """
@@ -45,19 +45,19 @@ def draw_label_color_block_on_frame(imageSrcPath: str, imageSavePath: str, **lab
 
     # 绘制 outside 标签
     x, y = (0, 0)
-    is_outside: bool = labels['outside']
+    is_outside: bool = labels['outside'] == 1
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='blue' if is_outside else 'black')
     draw.text((x, y), '外' if is_outside else '', align='center', font=font)
 
     # 绘制 nonsense 标签
     y += block_height
-    is_nonsense: bool = labels['nonsense']
+    is_nonsense: bool = labels['nonsense'] == 1
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='orange' if is_nonsense else 'black')
     draw.text((x, y), '坏' if is_nonsense else '', align='center', font=font)
 
     # 绘制 ileocecal 标签
     y += block_height
-    is_ileocecal: bool = labels['ileocecal']
+    is_ileocecal: bool = labels['ileocecal'] == 1
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='red' if is_ileocecal else 'black')
     draw.text((x, y), '盲' if is_ileocecal else '', align='center', font=font)
 
