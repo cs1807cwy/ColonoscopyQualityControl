@@ -13,6 +13,7 @@
         管线中输出的任何Json仅作日志使用，请勿做数据读取之用
         管线中的下一步处理直接从上一步的输出中获取数据，无需通过Json中转
 """
+import argparse
 
 """
     3.模型预测日志标签Json格式：
@@ -36,15 +37,30 @@
     ]
 """
 
-"""
-    实例化 ArgumentParser，接收下列参数：[*]表示可选参数
-        源视频路径 List[str]：指定每个视频路径
-        拆帧目录：List[str]：每个视频指定一个拆帧目录
-        [模型预测日志标签Json存储路径]：List[str]：每个视频指定一个Json存储路径
-        [模型预测日志信号图存储路径]：List[str]：每个视频指定一个信号图存储路径
-        卷积核规格列表 List[int*4]：分别对应 [体外，坏帧，回盲部，清洁度] 的中值滤波1D卷积核规格
-        [后处理日志标签Json存储路径] List[str]：每个视频指定一个Json存储路径
-        [后处理日志信号图存储路径] List[str]：每个视频指定一个信号图存储路径
-        渲染目录：List[str]：每个视频指定一个渲染帧目录
-        视频输出路径 List[str]：每个视频指定一个输出路径
-"""
+
+
+
+if __name__ == '__main__':
+    """
+        实例化 ArgumentParser，接收下列参数：[*]表示可选参数
+            源视频路径 List[str]：指定每个视频路径
+            拆帧目录：List[str]：每个视频指定一个拆帧目录
+            [模型预测日志标签Json存储路径]：List[str]：每个视频指定一个Json存储路径
+            [模型预测日志信号图存储路径]：List[str]：每个视频指定一个信号图存储路径
+            卷积核规格列表 List[int*4]：分别对应 [体外，坏帧，回盲部，清洁度] 的中值滤波1D卷积核规格
+            [后处理日志标签Json存储路径] List[str]：每个视频指定一个Json存储路径
+            [后处理日志信号图存储路径] List[str]：每个视频指定一个信号图存储路径
+            渲染目录：List[str]：每个视频指定一个渲染帧目录
+            视频输出路径 List[str]：每个视频指定一个输出路径
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('video_path', type=str, nargs='+', help='视频路径')
+    parser.add_argument('frame_path', type=str, nargs='+', help='拆帧目录')
+    parser.add_argument('--pred_json_path', type=str, nargs='+', help='模型预测日志标签Json存储路径')
+    parser.add_argument('--pred_signal_path', type=str, nargs='+', help='模型预测日志信号图存储路径')
+    parser.add_argument('kernel_sizes', type=int, nargs='+', help='卷积核规格列表')
+    parser.add_argument('--post_json_path', type=str, nargs='+', help='后处理日志标签Json存储路径')
+    parser.add_argument('--post_signal_path', type=str, nargs='+', help='后处理日志信号图存储路径')
+    parser.add_argument('render_path', type=str, nargs='+', help='渲染目录')
+    parser.add_argument('output_path', type=str, nargs='+', help='视频输出路径')
+
