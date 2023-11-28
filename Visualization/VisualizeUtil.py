@@ -4,7 +4,7 @@
         1.视频拆帧
         2.标签渲染到帧
 """
-import numpy
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, List, Union, Tuple
 import os
@@ -15,33 +15,27 @@ import cv2
     视频拆帧
 """
 
-def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str, step: int) -> Dict[str, float]:
+def extract_frames(input_video_path: str, frame_save_root: str, step: int=1) -> float:
     # 筛选全部具有ext指定包含后缀名的文件
-    items = []
-    video_info = dict()
-    for e in input_video_ext:
-        items += glob.glob(osp.join(input_video_root, '**', f'*.{e}'), recursive=True)
-        items = sorted(items)
-    for item in items:
-        name = item.split('/')[-1].split('.')[0]
-        frame_save_path = osp.join(frame_save_root, name)
-        os.makedirs(frame_save_path, exist_ok=True)
-        cap = cv2.VideoCapture(item)
-        frame_count = 0
-        success = True
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        print(f"Video {name} : FPS is {fps}.")
-        video_info[name] = fps
-        while success:
-            success, frame = cap.read()
-            if not success:
-                break
-            if frame_count % step == 0:
-                cv2.imwrite(osp.join(frame_save_path, f"{frame_count:06d}.png"), frame)
-            frame_count += 1
-        cap.release()
-        print(f"Video {name} : Split into {frame_count} frames.")
-    return video_info
+    item = input_video_path
+    name = item.split('/')[-1].split('.')[0]
+    frame_save_path = osp.join(frame_save_root, name)
+    os.makedirs(frame_save_path, exist_ok=True)
+    cap = cv2.VideoCapture(item)
+    frame_count = 0
+    success = True
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f"Video {name} : FPS is {fps}.")
+    while success:
+        success, frame = cap.read()
+        if not success:
+            break
+        if frame_count % step == 0:
+            cv2.imwrite(osp.join(frame_save_path, f"{frame_count:06d}.png"), frame)
+        frame_count += 1
+    cap.release()
+    print(f"Video {name} : Split into {frame_count} frames.")
+    return fps
 
 
 """ 
@@ -95,7 +89,7 @@ def draw_label_color_block_on_frame(image_src_path: str, image_save_path: str, *
 
 
 # post_label Mat [frame_count, 4]
-def draw_frames(raw_frame_dir: str, render_frame_dir: str, post_label: numpy.ndarray):
+def draw_frames(raw_frame_dir: str, render_frame_dir: str, post_label: np.ndarray):
     frame_names: List[str] = os.listdir(raw_frame_dir)
     frame_names.sort()
     print(frame_names)
@@ -116,8 +110,23 @@ def draw_frames(raw_frame_dir: str, render_frame_dir: str, post_label: numpy.nda
         draw_label_color_block_on_frame(abs_src_path, abs_out_path, **labels)
 
 
+def merge_frames_to_video(render_frame_dir: str, output_path: str, fps: float):
+    frame_names: List[str] = os.listdir(render_frame_dir)
+    frame_names.sort(key=lambda x: int(x.split('.')[0]))
+
+    head: np.ndarray = cv2.imread(osp.join(render_frame_dir, frame_names[0]))
+    height, width, layers = head.shape
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video_writer: cv2.VideoWriter = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    for frame_i in frame_names:
+        frame: np.ndarray = cv2.imread(osp.join(render_frame_dir, frame_i))
+        video_writer.write(frame)
+    video_writer.release()
+
+
 if __name__ == '__main__':
-    post_label = numpy.array([
+    post_label = np.array([
         [0, 1, 0, -1],
         [0, 0, 0, 3]
     ])
