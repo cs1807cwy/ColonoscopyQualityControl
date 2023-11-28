@@ -33,6 +33,7 @@ def parse_predict_label(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) 
     # 有outside，则其他标签均为无效标签；有nonsense，则ileocecal与bbps为无效标签
     signal_mat[signal_mat[:, 0] == 1, 1:] = -1
     signal_mat[signal_mat[:, 1] == 1, 2:] = -1
+    signal_mat = signal_mat.T  # s  hape: (4, len(predict_label))
     return signal_mat
 
 
@@ -119,7 +120,6 @@ def legalize_label(median_filtered_mat: np.ndarray, signal_mat: np.ndarray) -> n
                 F[i][1] = 1
     # 最后执行和网络模型中一样的标签抑制过程
     # Mat [4, frame_count] --> Mat [frame_count, 4]
-    F = F.T
     F[F[:, 0] == 1, 1:] = -1
     F[F[:, 1] == 1, 2:] = -1
     return F
