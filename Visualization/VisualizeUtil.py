@@ -4,7 +4,7 @@
         1.视频拆帧
         2.标签渲染到帧
 """
-
+import numpy
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, List, Union, Tuple
 import os
@@ -33,8 +33,8 @@ def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root
 """
 
 
-def draw_label_color_block_on_frame(imageSrcPath: str, imageSavePath: str, **labels) -> Image:
-    frame: Image = Image.open(imageSrcPath)
+def draw_label_color_block_on_frame(image_src_path: str, image_save_path: str, **labels) -> Image:
+    frame: Image = Image.open(image_src_path)
     height = frame.height
     width = frame.width
     block_height: int = min(height // 8, width)
@@ -66,23 +66,37 @@ def draw_label_color_block_on_frame(imageSrcPath: str, imageSavePath: str, **lab
     cls_bbps: int = labels['bbps']
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill=['#5b0f00', '#7f6000', 'cyan', 'green', 'black'][cls_bbps])
     draw.text((x + block_height // 4, y), f'{cls_bbps}' if cls_bbps >= 0 else '', align='center', font=font)
-    os.makedirs(osp.dirname(imageSavePath), exist_ok=True)
-    frame.save(imageSavePath)
+    os.makedirs(osp.dirname(image_save_path), exist_ok=True)
+    frame.save(image_save_path)
     return frame
 
 
-# 测试代码
+# post_label Mat [frame_count, 4]
+def draw_frames(raw_frame_dir: str, render_frame_dir: str, post_label: numpy.ndarray):
+    frame_names: List[str] = os.listdir(raw_frame_dir)
+    frame_names.sort()
+    print(frame_names)
+    os.makedirs(render_frame_dir, exist_ok=True)
+    render_count: int = min(len(frame_names), post_label.shape[0])
+    if len(frame_names) != post_label.shape[0]:
+        print('not equal, use min')
+    for i in range(render_count):
+        abs_src_path: str = osp.join(raw_frame_dir, frame_names[i])
+        abs_out_path: str = osp.join(render_frame_dir, frame_names[i])
+        label_seq: List[int] = list(post_label[i])
+        labels: Dict[str, int] = {
+            'outside': label_seq[0],
+            'nonsense': label_seq[1],
+            'ileocecal': label_seq[2],
+            'bbps': label_seq[3]
+        }
+        draw_label_color_block_on_frame(abs_src_path, abs_out_path, **labels)
+
+
 if __name__ == '__main__':
-    imageSrcPath = 'log/image.png'
-    imageSavePath = 'log/out.png'
-    draw_label_color_block_on_frame(
-        imageSrcPath,
-        imageSavePath,
-        **{'outside': True,
-           'nonsense': True,
-           'ileocecal': True,
-           'bbps': 3})
-    viz = cv2.imread(imageSavePath)
-    cv2.imshow('viz', viz)
-    cv2.waitKey()
-    cv2.destroyAllWindows()
+    post_label = numpy.array([
+        [0, 1, 0, -1],
+        [0, 0, 0, 3]
+    ])
+    draw_frames('/mnt/data/cwy/ColonoscopyQualityControl/Experiment/R106_predict_vitp14s336c7/frames/ZJY_10fps',
+                '/mnt/data/cwy/ColonoscopyQualityControl/Experiment/R106_predict_vitp14s336c7/frames/extest', post_label)
