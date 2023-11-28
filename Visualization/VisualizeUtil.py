@@ -15,19 +15,42 @@ import cv2
     视频拆帧
 """
 
-
 def extract_frames(input_video_root: str, input_video_ext: list, frame_save_root: str, step: int) -> Dict[str, float]:
-    # TODO
-    pass
+    # 筛选全部具有ext指定包含后缀名的文件
+    items = []
+    video_info = dict()
+    for e in input_video_ext:
+        items += glob.glob(osp.join(input_video_root, '**', f'*.{e}'), recursive=True)
+        items = sorted(items)
+    for item in items:
+        name = item.split('/')[-1].split('.')[0]
+        frame_save_path = osp.join(frame_save_root, name)
+        os.makedirs(frame_save_path, exist_ok=True)
+        cap = cv2.VideoCapture(item)
+        frame_count = 0
+        success = True
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        print(f"Video {name} : FPS is {fps}.")
+        video_info[name] = fps
+        while success:
+            success, frame = cap.read()
+            if not success:
+                break
+            if frame_count % step == 0:
+                cv2.imwrite(osp.join(frame_save_path, f"{frame_count:06d}.png"), frame)
+            frame_count += 1
+        cap.release()
+        print(f"Video {name} : Split into {frame_count} frames.")
+    return video_info
 
 
 """ 
     将标签渲染到帧
     参数 labels: 形如
     {
-        'outside': True,
-        'nonsense': True,
-        'ileocecal': True,
+        'outside': 0,
+        'nonsense': 0,
+        'ileocecal': 0,
         'bbps': 3
     }
 """
@@ -45,19 +68,19 @@ def draw_label_color_block_on_frame(image_src_path: str, image_save_path: str, *
 
     # 绘制 outside 标签
     x, y = (0, 0)
-    is_outside: bool = labels['outside']
+    is_outside: bool = labels['outside'] == 1
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='blue' if is_outside else 'black')
     draw.text((x, y), '外' if is_outside else '', align='center', font=font)
 
     # 绘制 nonsense 标签
     y += block_height
-    is_nonsense: bool = labels['nonsense']
+    is_nonsense: bool = labels['nonsense'] == 1
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='orange' if is_nonsense else 'black')
     draw.text((x, y), '坏' if is_nonsense else '', align='center', font=font)
 
     # 绘制 ileocecal 标签
     y += block_height
-    is_ileocecal: bool = labels['ileocecal']
+    is_ileocecal: bool = labels['ileocecal'] == 1
     draw.rectangle(((x, y), (x + block_height, y + block_height)), fill='red' if is_ileocecal else 'black')
     draw.text((x, y), '盲' if is_ileocecal else '', align='center', font=font)
 
