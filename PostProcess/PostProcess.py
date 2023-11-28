@@ -10,12 +10,13 @@ from typing import *
 import torch
 import numpy as np
 
-
 """
     预测标签解析 raw model predict output --> signal mat(numpy.ndarray)
     raw model predict output --> Mat [4, frame_count]
     4D label vector [outside, nonsense, ileocecal, bbps0-3] (用-1表示各标签的无效标签)
 """
+
+
 def parse_predict_label(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) -> np.ndarray:
     """
     :param predict_label: raw model predict output
@@ -45,6 +46,8 @@ def parse_predict_label(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) 
     以滑窗方式遍历，对于窗内数据，剔除无效标签（清洁度的-1），然后取下中位数作为滤波结果
     Seq [label0, label1, ...] --> Seq [label0, label1, ...]
 """
+
+
 def median_filter_sequence(seq: np.ndarray, N: int) -> np.ndarray:
     """
     :param seq: sequence(numpy.ndarray)
@@ -78,6 +81,8 @@ def median_filter_sequence(seq: np.ndarray, N: int) -> np.ndarray:
     调用 序列中值滤波 对每个标签分别执行中值滤波
     Mat [4, frame_count] --> Mat [4, frame_count]
 """
+
+
 def median_filter_signal_mat(signal_mat: np.ndarray, kernel_sizes: List[int]) -> np.ndarray:
     """
     :param signal_mat: signal mat(numpy.ndarray)
@@ -100,6 +105,8 @@ def median_filter_signal_mat(signal_mat: np.ndarray, kernel_sizes: List[int]) ->
     最后执行和网络模型中一样的标签抑制过程
     Mat [4, frame_count] --> Mat [frame_count, 4]
 """
+
+
 def legalize_label(median_filtered_mat: np.ndarray, signal_mat: np.ndarray) -> np.ndarray:
     """
     :param median_filtered_mat: median-filtered mat(numpy.ndarray)

@@ -31,7 +31,7 @@
 """
     5.后处理日志标签Json格式：
     [
-        [False, False, True, 3] # [outside, nonsense, ileocecal, bbps(-1 for nobbps)],
+        [0, 0, 0, 3] # [outside, nonsense, ileocecal, bbps(-1 for nobbps)],
         ...
     ]
 """
