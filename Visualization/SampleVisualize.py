@@ -265,3 +265,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(f'raw_args: {args}')
     main(args)
+
+    # Model: R105_train_vitp14s336c7_400
+    # Device: (0) RTX 3090
+    # Dataset: /mnt/data/cwy/Datasets/RemedyBubbles
+    # nohup python ./Visualization/SampleVisualize.py -bxrs --video_path /mnt/data/cwy/Datasets/RemedyBubbles --frame_path /mnt/data/cwy/RemedyBubbles_Viz/extract --pred_json_path /mnt/data/cwy/RemedyBubbles_Viz/pred_json --pred_signal_path /mnt/data/cwy/RemedyBubbles_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/RemedyBubbles_Viz/post_json --post_signal_path /mnt/data/cwy/RemedyBubbles_Viz/post_signal --render_path /mnt/data/cwy/RemedyBubbles_Viz/render --output_path /mnt/data/cwy/RemedyBubbles_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/RemedyBubbles_Viz.log &
+
+    # Model: R105_train_vitp14s336c7_400
+    # Device: (0) RTX 3090
+    # Dataset: /mnt/data/cwy/Datasets/TestClips
+    # nohup python ./Visualization/SampleVisualize.py -bxrs --video_path /mnt/data/cwy/Datasets/TestClips --frame_path /mnt/data/cwy/TestClips_Viz/extract --pred_json_path /mnt/data/cwy/TestClips_Viz/pred_json --pred_signal_path /mnt/data/cwy/TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/TestClips_Viz/post_json --post_signal_path /mnt/data/cwy/TestClips_Viz/post_signal --render_path /mnt/data/cwy/TestClips_Viz/render --output_path /mnt/data/cwy/TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/RemedyBubbles_Viz.log &
