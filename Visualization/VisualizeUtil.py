@@ -41,7 +41,7 @@ def extract_frames(input_video_path: str, frame_save_root: str, step: int = 1) -
             if not success:
                 break
             if frame_count % step == 0:
-                cv2.imwrite(osp.join(frame_save_root, f"{frame_count:06d}.png"), frame)
+                cv2.imwrite(osp.join(frame_save_root, f"{frame_count:010d}.png"), frame)
             frame_count += 1
             pbar.update(1)
 
