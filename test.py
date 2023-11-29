@@ -11,3 +11,11 @@ from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 import MultiLabelClassifier.Modelv3
 from MultiLabelClassifier import *
 
+
+def main():
+    if not cv2.cuda.getCudaEnabledDeviceCount():
+        print("CUDA is not available. Please make sure CUDA drivers are installed.")
+
+
+if __name__ == '__main__':
+    main()

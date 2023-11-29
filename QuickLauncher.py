@@ -189,7 +189,7 @@ class MultiLabelClassifyLauncher:
 
     def launch(self, stage):
         model = self.get_model()
-        if stage in {'finetune', 'export_model_torch_script', 'export_model_onnx'}:
+        if stage in {'finetune', 'export_model_torch_script'}:
             model = model.load_from_checkpoint(
                 self.ckpt_path,
                 map_location=torch.device('cpu'),
@@ -274,15 +274,15 @@ class MultiLabelClassifyLauncher:
                 print(script)
             else:
                 warnings.warn('model_save_path is not specified, abort exporting')
-        elif stage == 'export_model_onnx':  # 存在ONNX不支持的ATen算子（scaled_dot_product_attention），当前无法成功导出
-            if self.model_save_path is not None:
-                os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
-                # save for use in production environment
-                model.eval()
-                model.to_onnx(self.model_save_path)
-                print(model.device)
-            else:
-                warnings.warn('model_save_path is not specified, abort exporting')
+        # elif stage == 'export_model_onnx':  # 存在ONNX不支持的ATen算子（scaled_dot_product_attention），当前无法成功导出
+        #     if self.model_save_path is not None:
+        #         os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
+        #         # save for use in production environment
+        #         model.eval()
+        #         model.to_onnx(self.model_save_path)
+        #         print(model.device)
+        #     else:
+        #         warnings.warn('model_save_path is not specified, abort exporting')
         return None
 
 
@@ -423,9 +423,12 @@ if __name__ == '__main__':
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True,
                         choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model_torch_script',
-                                 'export_model_onnx', 'arg_debug'],
+                                 # 'export_model_onnx',
+                                 'arg_debug'],
                         help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，'
-                             'export_model_torch_script-导出TorchScript模型，export_model_onnx-导出ONNX模型，arg_debug-仅检查参数')
+                             'export_model_torch_script-导出TorchScript模型，'
+                             # 'export_model_onnx-导出ONNX模型，'
+                             'arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true',
                         help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')

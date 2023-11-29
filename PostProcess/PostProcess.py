@@ -9,6 +9,7 @@
 from typing import *
 import torch
 import numpy as np
+from statistics import median_low
 
 """
     预测标签解析 raw model predict output --> signal mat(numpy.ndarray)
@@ -20,22 +21,35 @@ import numpy as np
 def parse_predict_label(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) -> np.ndarray:
     """
     :param predict_label: raw model predict output
-    :return: signal mat(numpy.ndarray)
+    :return: label mat(numpy.ndarray)
     """
     # 前一个 Tensor 是预测概率，后一个 Tensor 是二值化后的标签，只需要后者
     # binary_label_mat: (len(predict_label), 7)
     # 7D label vector: [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3]
-    binary_label_mat: np.ndarray = np.array([label[1].cpu().numpy() for label in predict_label])
+    binary_label_mat: np.ndarray = np.array([label[1].squeeze().cpu().numpy() for label in predict_label]).astype(float)
     # 将 7D label vector 转换成 4D label vector，bbps0-3 合并成一个 bbps， 用-1表示各标签的无效标签
     bbps: np.ndarray = np.argmax(binary_label_mat[:, 3:7], axis=1)  # shape: (len(predict_label),)
     # 4D label vector [outside, nonsense, ileocecal, bbps]
-    signal_mat: np.ndarray = np.concatenate((binary_label_mat[:, 0:3], bbps[:, np.newaxis]),
-                                            axis=1)  # shape: (len(predict_label), 4)
+    signal_mat: np.ndarray = np.concatenate((binary_label_mat[:, 0:3], bbps[:, np.newaxis]), axis=1)  # shape: (len(predict_label), 4)
     # 有outside，则其他标签均为无效标签；有nonsense，则ileocecal与bbps为无效标签
     signal_mat[signal_mat[:, 0] == 1, 1:] = -1
     signal_mat[signal_mat[:, 1] == 1, 2:] = -1
-    signal_mat = signal_mat.T  # s  hape: (4, len(predict_label))
+    signal_mat = signal_mat.T  # shape: (4, len(predict_label))
     return signal_mat
+
+
+def extract_predict_logit_label_7(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) -> Tuple[List[List[float]], List[List[float]]]:
+    """
+    :param predict_label: raw model predict output
+    :return: logit_mat, label_mat
+    """
+    # 前一个 Tensor 是预测概率，后一个 Tensor 是二值化后的标签
+    # logit_mat: (len(predict_label), 7)
+    # label_mat: (len(predict_label), 7)
+    # 7D label vector: [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3]
+    logit_list: List[List[float]] = [list(label[0].squeeze().cpu().numpy().astype(float)) for label in predict_label]
+    label_list: List[List[float]] = [list(label[1].squeeze().cpu().numpy().astype(float)) for label in predict_label]
+    return logit_list, label_list
 
 
 """
@@ -65,7 +79,7 @@ def median_filter_sequence(seq: np.ndarray, N: int) -> np.ndarray:
         window = padded_seq[i - pad_size: i + pad_size + 1]
         valid_values = window[window != -1]
         if valid_values.size > 0:
-            filtered_seq[i] = np.median(valid_values)
+            filtered_seq[i] = median_low(valid_values.tolist())
         else:
             filtered_seq[i] = -1  # 如果窗口内所有值都是无效值，则滤波结果也设为无效值
 

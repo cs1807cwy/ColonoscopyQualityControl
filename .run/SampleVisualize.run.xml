@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="SampleVisualize" type="PythonConfigurationType" factoryName="Python" folderName="Visualization" nameIsGenerated="true">
+    <module name="ColonoscopyQualityControl" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Visualization/SampleVisualize.py" />
+    <option name="PARAMETERS" value="-xr --video_path /mnt/data/cwy/Datasets/video_samples/real_sceen_test/Median/NC_LT_Clip.mp4 --frame_path /mnt/data/cwy/Test/frames2 --pred_json_path /mnt/data/cwy/Test/model_pred.json --pred_signal_path /mnt/data/cwy/Test/model_pred.png --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/Test/post_label.json --post_signal_path /mnt/data/cwy/Test/post_label.png --render_path /mnt/data/cwy/Test/render --output_path /mnt/data/cwy/Test/LCY230313_163720_806m_25fps_with_label.mp4 --device 3 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>
