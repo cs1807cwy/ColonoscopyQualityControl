@@ -160,25 +160,29 @@ def pipeline(args: argparse.Namespace):
 
             if args.render_frame or not args.merge_video:
                 # 实例化模型预测
-                pred = predict(args.device, args.frame_path[i], args.ckpt_path)
+                # pred = predict(args.device, args.frame_path[i], args.ckpt_path)
 
-                # pred: List[Tuple[torch.Tensor, torch.Tensor]] = \
-                #     [
-                #         (torch.from_numpy(np.array(([[0.1, 0.2, 0.9, 0.1, 0.1, 0.6, 0.1]]))),
-                #          torch.from_numpy(np.array(([[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0]])))),
-                #         (torch.from_numpy(np.array(([[0.9, 0.2, 0.1, 0.1, 0.1, 0.3, 0.1]]))),
-                #          torch.from_numpy(np.array(([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]))))
-                #     ]
+                pred: List[Tuple[torch.Tensor, torch.Tensor]] = \
+                    [
+                        (torch.from_numpy(np.array(([[0.1, 0.2, 0.9, 0.1, 0.1, 0.6, 0.1]]))),
+                         torch.from_numpy(np.array(([[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0]])))),
+                        (torch.from_numpy(np.array(([[0.9, 0.2, 0.1, 0.1, 0.1, 0.3, 0.1]]))),
+                         torch.from_numpy(np.array(([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]))))
+                    ]
+                print(pred)
 
                 # 原始模型预测日志
                 model_predict = None
                 if args.pred_json_path is not None and i < len(args.pred_json_path):
+                    print('pred_json_path')
                     model_predict = log_model_predict(pred, args.pred_json_path[i])
                 if args.pred_signal_path is not None and i < len(args.pred_signal_path):
+                    print('pred_signal_path')
                     if model_predict is None:
                         model_predict = log_model_predict(pred, None)
                     plot_model_predict(model_predict, args.pred_signal_path[i])
 
+                print('post_process')
                 # 后处理
                 signal_mat = parse_predict_label(pred)
                 scaled_N = [max(1, math.ceil(fps / 25.0 * N)) for N in args.kernel_sizes]

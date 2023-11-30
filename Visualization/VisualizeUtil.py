@@ -12,6 +12,8 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, List, Union, Tuple
 import cv2
 from tqdm import tqdm
+import matplotlib
+matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 
 import os
@@ -54,6 +56,7 @@ def extract_frames(input_video_path: str, frame_save_root: str, step: int = 1) -
 def get_video_fps(input_video_path: str) -> float:
     cap = cv2.VideoCapture(input_video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
     print(f'Video {osp.basename(osp.splitext(input_video_path)[0])} : FPS is {fps}.')
     return fps
 
