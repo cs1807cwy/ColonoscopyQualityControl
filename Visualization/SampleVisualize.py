@@ -16,7 +16,14 @@ import argparse
 import shutil
 import glob
 
-from VisualizeUtil import *
+import os
+import os.path as osp
+import sys
+
+path = os.path.dirname(osp.abspath(osp.join(__file__, '..', '..', 'PostProcess')))
+sys.path.append(path)
+
+from Visualization.VisualizeUtil import *
 from PostProcess import *
 from MultiLabelClassifier import *
 
@@ -139,8 +146,8 @@ def pipeline(args: argparse.Namespace):
         # 执行渲染例程
         if args.r:
             for i in range(len(args.video_path)):
-                draw_frames(args.frame_path[i], args.render_path[i], post_label)
-                merge_frames_to_video(args.render_path[i], args.output_path[i], fps)
+                draw_frames(args.frame_path[i], args.render_path[i], post_label[i])
+                merge_frames_to_video(args.render_path[i], args.output_path[i], fps[i])
 
     # 按样本执行管线
     else:
@@ -274,4 +281,4 @@ if __name__ == '__main__':
     # Model: R105_train_vitp14s336c7_400
     # Device: (0) RTX 3090
     # Dataset: /mnt/data/cwy/Datasets/TestClips
-    # nohup python ./Visualization/SampleVisualize.py -bxrs --video_path /mnt/data/cwy/Datasets/TestClips --frame_path /mnt/data/cwy/TestClips_Viz/extract --pred_json_path /mnt/data/cwy/TestClips_Viz/pred_json --pred_signal_path /mnt/data/cwy/TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/TestClips_Viz/post_json --post_signal_path /mnt/data/cwy/TestClips_Viz/post_signal --render_path /mnt/data/cwy/TestClips_Viz/render --output_path /mnt/data/cwy/TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/RemedyBubbles_Viz.log &
+    # nohup python ./Visualization/SampleVisualize.py -bxrs --video_path /mnt/data/cwy/Datasets/TestClips --frame_path /mnt/data/cwy/TestClips_Viz/extract --pred_json_path /mnt/data/cwy/TestClips_Viz/pred_json --pred_signal_path /mnt/data/cwy/TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/TestClips_Viz/post_json --post_signal_path /mnt/data/cwy/TestClips_Viz/post_signal --render_path /mnt/data/cwy/TestClips_Viz/render --output_path /mnt/data/cwy/TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/TestClips_Viz.log &

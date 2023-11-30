@@ -10,11 +10,12 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, List, Union, Tuple
-import os
-import os.path as osp
 import cv2
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+
+import os
+import os.path as osp
 
 from PostProcess import extract_predict_logit_label_7
 
@@ -114,7 +115,6 @@ def plot_model_predict(data: Dict[str, List[List[Union[float, int]]]], plot_path
     label: np.ndarray = np.array(data['label'])  # Mat [frame_count, 7]
 
     plt.rcParams['font.size'] = 32
-    plt.figure()
     X = np.arange(0, logit.shape[0])
     label_name = ['outside', 'nonsense', 'ileocecal', 'bbps0', 'bbps1', 'bbps2', 'bbps3']
     color = ['blue', 'orange', 'red', '#5b0f00', '#7f6000', 'cyan', 'green']
@@ -134,6 +134,7 @@ def plot_model_predict(data: Dict[str, List[List[Union[float, int]]]], plot_path
     plot_path = osp.abspath(plot_path)
     os.makedirs(osp.dirname(plot_path), exist_ok=True)
     plt.savefig(plot_path, dpi=300)
+    plt.close(fig)
     print(f'plot model predict signal: {plot_path}')
 
 
@@ -177,7 +178,6 @@ def plot_post_label(data: List[List[int]], plot_path: str):
     label: np.ndarray = np.array(data)  # Mat [frame_count, 7]
 
     plt.rcParams['font.size'] = 32
-    plt.figure()
     X = np.arange(0, label.shape[0])
     label_name = ['outside', 'nonsense', 'ileocecal', 'bbps']
     color = ['blue', 'orange', 'red', '#7f6000']
@@ -195,6 +195,7 @@ def plot_post_label(data: List[List[int]], plot_path: str):
     plot_path = osp.abspath(plot_path)
     os.makedirs(osp.dirname(plot_path), exist_ok=True)
     plt.savefig(plot_path, dpi=300)
+    plt.close(fig)
     print(f'plot post label signal: {plot_path}')
 
 
@@ -278,6 +279,7 @@ def merge_frames_to_video(render_frame_dir: str, output_path: str, fps: float):
     head: np.ndarray = cv2.imread(osp.join(render_frame_dir, frame_names[0]))
     height, width, layers = head.shape
 
+    os.makedirs(osp.dirname(output_path), exist_ok=True)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_writer: cv2.VideoWriter = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
     with tqdm(total=len(frame_names), desc='render video') as pbar:
