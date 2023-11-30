@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Visualization/SampleVisualize.py" />
-    <option name="PARAMETERS" value="-bxrs --video_path /mnt/data/cwy/Datasets/RemedyBubbles --frame_path /mnt/data/cwy/RemedyBubbles_Viz/extract --pred_json_path /mnt/data/cwy/RemedyBubbles_Viz/pred_json --pred_signal_path /mnt/data/cwy/RemedyBubbles_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/RemedyBubbles_Viz/post_json --post_signal_path /mnt/data/cwy/RemedyBubbles_Viz/post_signal --render_path /mnt/data/cwy/RemedyBubbles_Viz/render --output_path /mnt/data/cwy/RemedyBubbles_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt" />
+    <option name="PARAMETERS" value="-bxrms --video_path /mnt/data/cwy/Datasets/RemedyBubbles --frame_path /mnt/data/cwy/RemedyBubbles_Viz/extract --pred_json_path /mnt/data/cwy/RemedyBubbles_Viz/pred_json --pred_signal_path /mnt/data/cwy/RemedyBubbles_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/RemedyBubbles_Viz/post_json --post_signal_path /mnt/data/cwy/RemedyBubbles_Viz/post_signal --render_path /mnt/data/cwy/RemedyBubbles_Viz/render --output_path /mnt/data/cwy/RemedyBubbles_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

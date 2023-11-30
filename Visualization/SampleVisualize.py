@@ -104,102 +104,109 @@ def predict(devices: list, input_image_root: str, ckpt_path: str) -> List[Tuple[
 
 def pipeline(args: argparse.Namespace):
     # 按步骤执行管线
-    if args.s:
+    if args.step_mode:
         # 获取视频元信息[，拆帧]
         fps = []
         for i in range(len(args.video_path)):
-            fps.append(extract_frames(args.video_path[i], args.frame_path[i], 1) if args.x else get_video_fps(args.video_path[i]))
+            fps.append(extract_frames(args.video_path[i], args.frame_path[i], 1) if args.extract_frame else get_video_fps(args.video_path[i]))
 
-        # 实例化模型预测
-        pred = []
-        for i in range(len(args.video_path)):
-            pred.append(predict(args.device, args.frame_path[i], args.ckpt_path))
+        if args.render_frame or not args.merge_video:
+            # 实例化模型预测
+            pred = []
+            for i in range(len(args.frame_path)):
+                pred.append(predict(args.device, args.frame_path[i], args.ckpt_path))
 
-        # 原始模型预测日志
-        for i in range(len(args.video_path)):
-            model_predict = None
-            if args.pred_json_path is not None and i < len(args.pred_json_path):
-                model_predict = log_model_predict(pred[i], args.pred_json_path[i])
-            if args.pred_signal_path is not None and i < len(args.pred_signal_path):
-                if model_predict is None:
-                    model_predict = log_model_predict(pred[i], None)
-                plot_model_predict(model_predict, args.pred_signal_path[i])
+            # 原始模型预测日志
+            for i in range(len(args.frame_path)):
+                model_predict = None
+                if args.pred_json_path is not None and i < len(args.pred_json_path):
+                    model_predict = log_model_predict(pred[i], args.pred_json_path[i])
+                if args.pred_signal_path is not None and i < len(args.pred_signal_path):
+                    if model_predict is None:
+                        model_predict = log_model_predict(pred[i], None)
+                    plot_model_predict(model_predict, args.pred_signal_path[i])
 
-        # 后处理
-        post_label = []
-        for i in range(len(args.video_path)):
-            signal_mat = parse_predict_label(pred[i])
-            scaled_N = [max(1, math.ceil(fps[i] / 25.0 * N)) for N in args.kernel_sizes]
-            median_filtered_mat = median_filter_signal_mat(signal_mat, scaled_N)
-            post_label.append(legalize_label(median_filtered_mat, signal_mat))
+            # 后处理
+            post_label = []
+            for i in range(len(args.frame_path)):
+                signal_mat = parse_predict_label(pred[i])
+                scaled_N = [max(1, math.ceil(fps[i] / 25.0 * N)) for N in args.kernel_sizes]
+                median_filtered_mat = median_filter_signal_mat(signal_mat, scaled_N)
+                post_label.append(legalize_label(median_filtered_mat, signal_mat))
 
-        # 后处理结果日志
-        for i in range(len(args.video_path)):
-            post_lb = None
-            if args.post_json_path is not None and i < len(args.post_json_path):
-                post_lb = log_post_predict(post_label[i], args.post_json_path[i])
-            if args.post_signal_path is not None and i < len(args.post_signal_path):
-                if post_lb is None:
-                    post_lb = log_post_predict(post_label[i], None)
-                plot_post_label(post_lb, args.post_signal_path[i])
+            # 后处理结果日志
+            for i in range(len(args.frame_path)):
+                post_lb = None
+                if args.post_json_path is not None and i < len(args.post_json_path):
+                    post_lb = log_post_predict(post_label[i], args.post_json_path[i])
+                if args.post_signal_path is not None and i < len(args.post_signal_path):
+                    if post_lb is None:
+                        post_lb = log_post_predict(post_label[i], None)
+                    plot_post_label(post_lb, args.post_signal_path[i])
 
         # 执行渲染例程
-        if args.r:
-            for i in range(len(args.video_path)):
+        if args.render_frame:
+            for i in range(len(args.render_path)):
                 draw_frames(args.frame_path[i], args.render_path[i], post_label[i])
+        if args.merge_video:
+            for i in range(len(args.output_path)):
                 merge_frames_to_video(args.render_path[i], args.output_path[i], fps[i])
 
     # 按样本执行管线
     else:
         for i in range(len(args.video_path)):
             # 获取视频元信息[，拆帧]
-            fps = extract_frames(args.video_path[i], args.frame_path[i], 1) if args.x else get_video_fps(args.video_path[i])
+            fps = extract_frames(args.video_path[i], args.frame_path[i], 1) if args.extract_frame else get_video_fps(args.video_path[i])
 
-            # 实例化模型预测
-            pred = predict(args.device, args.frame_path[i], args.ckpt_path)
+            if args.render_frame or not args.merge_video:
+                # 实例化模型预测
+                pred = predict(args.device, args.frame_path[i], args.ckpt_path)
 
-            # pred: List[Tuple[torch.Tensor, torch.Tensor]] = \
-            #     [
-            #         (torch.from_numpy(np.array(([[0.1, 0.2, 0.9, 0.1, 0.1, 0.6, 0.1]]))),
-            #          torch.from_numpy(np.array(([[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0]])))),
-            #         (torch.from_numpy(np.array(([[0.9, 0.2, 0.1, 0.1, 0.1, 0.3, 0.1]]))),
-            #          torch.from_numpy(np.array(([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]))))
-            #     ]
+                # pred: List[Tuple[torch.Tensor, torch.Tensor]] = \
+                #     [
+                #         (torch.from_numpy(np.array(([[0.1, 0.2, 0.9, 0.1, 0.1, 0.6, 0.1]]))),
+                #          torch.from_numpy(np.array(([[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0]])))),
+                #         (torch.from_numpy(np.array(([[0.9, 0.2, 0.1, 0.1, 0.1, 0.3, 0.1]]))),
+                #          torch.from_numpy(np.array(([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]))))
+                #     ]
 
-            # 原始模型预测日志
-            model_predict = None
-            if args.pred_json_path is not None and i < len(args.pred_json_path):
-                model_predict = log_model_predict(pred, args.pred_json_path[i])
-            if args.pred_signal_path is not None and i < len(args.pred_signal_path):
-                if model_predict is None:
-                    model_predict = log_model_predict(pred, None)
-                plot_model_predict(model_predict, args.pred_signal_path[i])
+                # 原始模型预测日志
+                model_predict = None
+                if args.pred_json_path is not None and i < len(args.pred_json_path):
+                    model_predict = log_model_predict(pred, args.pred_json_path[i])
+                if args.pred_signal_path is not None and i < len(args.pred_signal_path):
+                    if model_predict is None:
+                        model_predict = log_model_predict(pred, None)
+                    plot_model_predict(model_predict, args.pred_signal_path[i])
 
-            # 后处理
-            signal_mat = parse_predict_label(pred)
-            scaled_N = [max(1, math.ceil(fps / 25.0 * N)) for N in args.kernel_sizes]
-            median_filtered_mat = median_filter_signal_mat(signal_mat, scaled_N)
-            post_label = legalize_label(median_filtered_mat, signal_mat)
+                # 后处理
+                signal_mat = parse_predict_label(pred)
+                scaled_N = [max(1, math.ceil(fps / 25.0 * N)) for N in args.kernel_sizes]
+                median_filtered_mat = median_filter_signal_mat(signal_mat, scaled_N)
+                post_label = legalize_label(median_filtered_mat, signal_mat)
 
-            # 后处理结果日志
-            post_lb = None
-            if args.post_json_path is not None and i < len(args.post_json_path):
-                post_lb = log_post_predict(post_label, args.post_json_path[i])
-            if args.post_signal_path is not None and i < len(args.post_signal_path):
-                if post_lb is None:
-                    post_lb = log_post_predict(post_label, None)
-                plot_post_label(post_lb, args.post_signal_path[i])
+                # 后处理结果日志
+                post_lb = None
+                if args.post_json_path is not None and i < len(args.post_json_path):
+                    post_lb = log_post_predict(post_label, args.post_json_path[i])
+                if args.post_signal_path is not None and i < len(args.post_signal_path):
+                    if post_lb is None:
+                        post_lb = log_post_predict(post_label, None)
+                    plot_post_label(post_lb, args.post_signal_path[i])
 
-            # 执行渲染例程
-            if args.r:
+            # 执行渲染帧例程
+            if args.render_frame:
                 draw_frames(args.frame_path[i], args.render_path[i], post_label)
+
+            # 执行合成视频例程
+            if args.merge_video:
                 merge_frames_to_video(args.render_path[i], args.output_path[i], fps)
 
 
 def main(args: argparse.Namespace):
     raw_dict: Dict = vars(args).copy()
 
-    if args.b:
+    if args.batching:
         video_path_l: List[str] = []
         for e in args.video_ext:
             video_path_l += glob.glob(osp.join(args.video_path[0], '**', f'*.{e}'), recursive=True)
@@ -226,9 +233,9 @@ def main(args: argparse.Namespace):
 
     # 移除已存在的中转目录
     for fp, rp in zip(wrapped_args.frame_path, wrapped_args.render_path):
-        if args.x:
+        if args.extract_frame:
             shutil.rmtree(fp, ignore_errors=True)
-        if args.r:
+        if args.render_frame:
             shutil.rmtree(rp, ignore_errors=True)
     # 单独存储日志的目录不会被移除
 
@@ -252,20 +259,21 @@ if __name__ == '__main__':
             模型预测检查点路径 str：指定模型预测检查点路径
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', action='store_true', help='执行批处理')
-    parser.add_argument('-x', action='store_true', help='执行拆帧例程')
-    parser.add_argument('-r', action='store_true', help='执行渲染例程')
-    parser.add_argument('-s', action='store_true', help='步骤执行，按步骤执行管线，而不是按样本执行')
-    parser.add_argument('--video_ext', type=str, nargs='+', default=['mp4'], help='视频扩展名过滤器，用于批处理，可输入多个')
-    parser.add_argument('--video_path', type=str, nargs='+', help='视频路径，批处理时为视频目录路径')
-    parser.add_argument('--frame_path', type=str, nargs='+', help='拆帧目录，批处理时为拆帧上级目录路径')
+    parser.add_argument('-b', '--batching', action='store_true', help='执行批处理')
+    parser.add_argument('-x', '--extract_frame', action='store_true', help='执行拆帧例程')
+    parser.add_argument('-r', '--render_frame', action='store_true', help='执行渲染帧例程')
+    parser.add_argument('-m', '--merge_video', action='store_true', help='执行视频合成例程')
+    parser.add_argument('-s', '--step_mode', action='store_true', help='步骤执行，按步骤执行管线，而不是按样本执行')
+    parser.add_argument('--video_ext', type=str, nargs='+', help='视频扩展名过滤器，用于批处理，可输入多个', default=['mp4'])
+    parser.add_argument('--video_path', type=str, nargs='+', help='视频路径，批处理时为视频目录路径', default=None)
+    parser.add_argument('--frame_path', type=str, nargs='+', help='拆帧目录，批处理时为拆帧上级目录路径', default=None)
     parser.add_argument('--pred_json_path', type=str, nargs='+', help='模型预测日志标签Json存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--pred_signal_path', type=str, nargs='+', help='模型预测日志信号图存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--kernel_sizes', type=int, nargs='+', help='卷积核规格列表（25FPS基准）')
     parser.add_argument('--post_json_path', type=str, nargs='+', help='后处理日志标签Json存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--post_signal_path', type=str, nargs='+', help='后处理日志信号图存储路径，批处理时为存储目录路径', default=None)
-    parser.add_argument('--render_path', type=str, nargs='+', help='渲染目录，批处理时为渲染上级目录路径')
-    parser.add_argument('--output_path', type=str, nargs='+', help='视频输出路径，批处理时为输出目录路径')
+    parser.add_argument('--render_path', type=str, nargs='+', help='渲染目录，批处理时为渲染上级目录路径', default=None)
+    parser.add_argument('--output_path', type=str, nargs='+', help='视频输出路径，批处理时为输出目录路径', default=None)
     parser.add_argument('--device', type=int, nargs='+', help='设备号')
     parser.add_argument('--ckpt_path', type=str, help='lightning-pytorch模型文件路径')
 
@@ -276,9 +284,9 @@ if __name__ == '__main__':
     # Model: R105_train_vitp14s336c7_400
     # Device: (0) RTX 3090
     # Dataset: /mnt/data/cwy/Datasets/RemedyBubbles
-    # nohup python ./Visualization/SampleVisualize.py -bxrs --video_path /mnt/data/cwy/Datasets/RemedyBubbles --frame_path /mnt/data/cwy/RemedyBubbles_Viz/extract --pred_json_path /mnt/data/cwy/RemedyBubbles_Viz/pred_json --pred_signal_path /mnt/data/cwy/RemedyBubbles_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/RemedyBubbles_Viz/post_json --post_signal_path /mnt/data/cwy/RemedyBubbles_Viz/post_signal --render_path /mnt/data/cwy/RemedyBubbles_Viz/render --output_path /mnt/data/cwy/RemedyBubbles_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/RemedyBubbles_Viz.log &
+    # nohup python ./Visualization/SampleVisualize.py -bxrms --video_path /mnt/data/cwy/Datasets/RemedyBubbles --frame_path /mnt/data/cwy/RemedyBubbles_Viz/extract --pred_json_path /mnt/data/cwy/RemedyBubbles_Viz/pred_json --pred_signal_path /mnt/data/cwy/RemedyBubbles_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/RemedyBubbles_Viz/post_json --post_signal_path /mnt/data/cwy/RemedyBubbles_Viz/post_signal --render_path /mnt/data/cwy/RemedyBubbles_Viz/render --output_path /mnt/data/cwy/RemedyBubbles_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/RemedyBubbles_Viz.log &
 
     # Model: R105_train_vitp14s336c7_400
     # Device: (0) RTX 3090
     # Dataset: /mnt/data/cwy/Datasets/TestClips
-    # nohup python ./Visualization/SampleVisualize.py -bxrs --video_path /mnt/data/cwy/Datasets/TestClips --frame_path /mnt/data/cwy/TestClips_Viz/extract --pred_json_path /mnt/data/cwy/TestClips_Viz/pred_json --pred_signal_path /mnt/data/cwy/TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/TestClips_Viz/post_json --post_signal_path /mnt/data/cwy/TestClips_Viz/post_signal --render_path /mnt/data/cwy/TestClips_Viz/render --output_path /mnt/data/cwy/TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/TestClips_Viz.log &
+    # nohup python ./Visualization/SampleVisualize.py -bxrms --video_path /mnt/data/cwy/Datasets/TestClips --frame_path /mnt/data/cwy/TestClips_Viz/extract --pred_json_path /mnt/data/cwy/TestClips_Viz/pred_json --pred_signal_path /mnt/data/cwy/TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/TestClips_Viz/post_json --post_signal_path /mnt/data/cwy/TestClips_Viz/post_signal --render_path /mnt/data/cwy/TestClips_Viz/render --output_path /mnt/data/cwy/TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/TestClips_Viz.log &
