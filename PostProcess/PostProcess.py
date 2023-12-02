@@ -2,9 +2,10 @@
     后处理功能函数
     后处理相关的辅助函数都在此实现：
         1.预测标签解析
-        2.序列中值滤波
-        3.逐标签中值滤波
-        4.标签合法化封装
+        2.预测概率值、标签解析
+        3.序列中值滤波
+        4.逐标签中值滤波
+        5.标签合法化封装
 """
 from typing import *
 import torch
@@ -37,6 +38,12 @@ def parse_predict_label(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) 
     signal_mat = signal_mat.T  # shape: (4, len(predict_label))
     return signal_mat
 
+"""
+    预测概率值、标签解析 raw model predict output --> tuple(logit list, label list)
+    raw model predict output --> Tuple[List[List[float*7]], List[List[float*7]]]
+    7D label vector [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3] (均介于[0,1])
+    返回 tuple(7D vector logit list, 7D vector label list)
+"""
 
 def extract_predict_logit_label_7(predict_label: List[Tuple[torch.Tensor, torch.Tensor]]) -> Tuple[List[List[float]], List[List[float]]]:
     """

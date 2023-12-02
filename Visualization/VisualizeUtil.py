@@ -3,6 +3,13 @@
     可视化相关的辅助函数都在此实现：
         1.视频拆帧
         2.标签渲染到帧
+        3.输出模型原始预测日志
+        4.输出模型原始预测信号图
+        5.输出后处理结果日志
+        6.输出后处理结果信号图
+        7.将标签渲染到帧
+        8.将标签Mat渲染到目录下的每一帧中
+        9.利用目录下全部帧合成视频
 """
 import warnings
 import json
@@ -13,6 +20,7 @@ from typing import Dict, List, Union, Tuple
 import cv2
 from tqdm import tqdm
 import matplotlib
+
 matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 
@@ -252,6 +260,7 @@ def draw_label_color_block_on_frame(image_src_path: str, image_save_path: str, *
     return frame
 
 
+# 将标签Mat渲染到目录下的每一帧中
 # post_label Mat [frame_count, 4]
 def draw_frames(raw_frame_dir: str, render_frame_dir: str, post_label: np.ndarray):
     frame_names: List[str] = os.listdir(raw_frame_dir)
@@ -275,6 +284,7 @@ def draw_frames(raw_frame_dir: str, render_frame_dir: str, post_label: np.ndarra
             pbar.update(1)
 
 
+# 利用目录下全部帧合成视频
 def merge_frames_to_video(render_frame_dir: str, output_path: str, fps: float):
     frame_names: List[str] = os.listdir(render_frame_dir)
     frame_names.sort(key=lambda x: int(x.split('.')[0]))
@@ -291,12 +301,3 @@ def merge_frames_to_video(render_frame_dir: str, output_path: str, fps: float):
             video_writer.write(frame)
             pbar.update(1)
     video_writer.release()
-
-
-if __name__ == '__main__':
-    post_label = np.array([
-        [0, 1, 0, -1],
-        [0, 0, 0, 3]
-    ])
-    draw_frames('/mnt/data/cwy/ColonoscopyQualityControl/Experiment/R106_predict_vitp14s336c7/frames/ZJY_10fps',
-                '/mnt/data/cwy/ColonoscopyQualityControl/Experiment/R106_predict_vitp14s336c7/frames/extest', post_label)

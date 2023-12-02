@@ -6,6 +6,10 @@ It is an implementation based on PyTorch and Lightning
 
 实现基于PyTorch和Lightning框架
 
+[Tutorials](Visualization/README.md) for visualization pipeline 
+
+可视化管线的使用请参见[这里](Visualization/README.md)
+
 [TOC]
 
 ## Project Structure
@@ -20,8 +24,9 @@ It is an implementation based on PyTorch and Lightning
 │ ├─<ExperimentName 1>  # 实验目录
 │ └─<ExperimentName ...>
 ├─Export  # 导出模型文件存储目录
-│ └─<ExportModel>.ths  # 导出的模型文件	
-├─MultiLabelClassifier  # 程序脚本目录
+│ └─<ExportModel>.ths  # 导出的模型文件
+├─Font    #渲染用字体文件
+├─MultiLabelClassifier  # 神经网络管线目录
 │ ├─Network  # 网络模块目录
 │ | ├─ClassifyHead.py  # CSRA模块
 │ | └─ViT_Backbone.py  # 主干网络（使用Timm迁移模型）
@@ -29,6 +34,11 @@ It is an implementation based on PyTorch and Lightning
 │ ├─Dataset.py  # 数据预处理
 │ ├─Modelv2.py  # ViT-L-Patch16-224 CSRA网络模型
 │ └─Modelv3.py  # ViT-L-Patch14-336 CSRA网络模型
+├─PostProcess   # 后处理例程目录
+│ └─PostProcess.py  # 后处理功能函数，5个后处理相关的辅助函数都在此实现
+├─Visualzation  # 可视化管线目录
+│ ├─SampleVisualize.py  # 可视化管线启动入口
+│ └─VisualizeUtil.py  # 可视化功能函数
 ├─DeployLauncher.py  # Lightning CLI部署启动器（备用启动入口）
 ├─QuickLauncher.py  # 命令行参数快速启动器（启动入口）
 └─README.md  # 当前说明文档
@@ -96,7 +106,7 @@ conda activate <VirtualEnv>
 
 Install PyTorch2.0 related components:
 
-安装PyTorch2.0相关组件：
+安装PyTorch2.0相关组件：（请确认对应CUDA版本，此处以11.8为例）
 
 ```bash
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
@@ -146,12 +156,10 @@ Launch command example:
 
 **注**：导出Torch Script可用，export_model_torch_script模式导出可用性已通过验证（可适配演示程序）
 
-**注**：因网络中存在ONNX不支持的ATen算子，export_model_onnx模式无法成功导出ONNX模型
-
 ```bash
 python QuickLauncher.py
 # [核心参数] 模式，fit表示以训练模式启动
-# 总计7种模式{fit-训练,finetune-优化训练,validate-验证,test-测试,predict-预测,export_model_torch_script-导出TorchScript模型,export_model_onnx-导出ONNX模型,arg_debug-命令参数调试}
+# 总计7种模式{fit-训练,finetune-优化训练,validate-验证,test-测试,predict-预测,export_model_torch_script-导出TorchScript模型,arg_debug-命令参数调试}
 --stage fit
 # 使用PyTorch2.0的编译加速（如无需使用，则省略此参数）
 --compile_model
@@ -169,7 +177,7 @@ python QuickLauncher.py
 --accelerator gpu
 # [非核心参数，保持默认即可] ddp表示使用数据分布并行调度策略
 --strategy ddp
-# [核心参数] 加速设备指定：accelerator为gpu时，传入所使用的设备编号列表（空格分隔，如此处"2 3"表示使用编号2、3的两块GPU）；accelerator为cpu时，传入加速使用的cpu核心数（如"4"表示使用四核加速）
+# [核心参数] 加速设备指定：accelerator为gpu时，传入所使用的设备编号列表（空格分隔，如此处"2 3"表示使用编号2、3的两个GPU）；accelerator为cpu时，传入加速使用的cpu核心数（如"4"表示使用四核加速）
 --devices 2 3
 # [非核心参数，保持默认即可] 1表示每1 Epoch后运行一次验证流程来监视模型性能
 --check_val_every_n_epoch 1 
@@ -236,10 +244,11 @@ Detailed usage:
 启动命令参数详细用法：
 
 ```bash
-usage: QuickLauncher.py [-h] -s
-                        {fit,finetune,validate,test,predict,export_model_torch_script,export_model_onnx,arg_debug}
-                        [-cm] [-msp MODEL_SAVE_PATH] [-se SEED_EVERYTHING]
-                        [-me MAX_EPOCHS] [-bs BATCH_SIZE] [-cp CKPT_PATH]
+usage: QuickLauncher.py [-h] -s 
+                        {fit,finetune,validate,test,predict,export_model_torch_script,arg_debug}
+                        [-cm] [-msp MODEL_SAVE_PATH] [-psp PRED_SAVE_PATH]
+                        [-se SEED_EVERYTHING] [-me MAX_EPOCHS]
+                        [-bs BATCH_SIZE] [-cp CKPT_PATH]
                         [-acc {cpu,gpu,tpu,ipu,auto}]
                         [-str {ddp,ddp_spawn,ddp_notebook}]
                         [-dev DEVICES [DEVICES ...]]
@@ -255,9 +264,10 @@ usage: QuickLauncher.py [-h] -s
                         [-bj BRIGHTNESS_JITTER] [-cj CONTRAST_JITTER]
                         [-sj SATURATION_JITTER] [-nw NUM_WORKERS]
                         [-mcp MODEL_CLASS_PATH] [-nh {1,2,4,6,8}]
-                        [-al ATTENTION_LAMBDA] [-thr THRESH] [-lr LR]
-                        [-mom MOMENTUM] [-wd WEIGHT_DECAY] [-cw CLS_WEIGHT]
-                        [-oat OUTSIDE_ACC_THRESH] [-nat NONSENSE_ACC_THRESH]
+                        [-al ATTENTION_LAMBDA] [-thr THRESH [THRESH ...]]
+                        [-lr LR] [-mom MOMENTUM] [-wd WEIGHT_DECAY]
+                        [-cw CLS_WEIGHT] [-oat OUTSIDE_ACC_THRESH]
+                        [-nat NONSENSE_ACC_THRESH]
                         [-timfp TEST_ID_MAP_FILE_PATH]
                         [-tvsd TEST_VIZ_SAVE_DIR]
 
@@ -265,15 +275,17 @@ usage: QuickLauncher.py [-h] -s
 
 options:
   -h, --help            show this help message and exit
-  -s {fit,finetune,validate,test,predict,export_model_torch_script,export_model_onnx,arg_debug}, 
-  --stage {fit,finetune,validate,test,predict,export_model_torch_script,export_model_onnx,arg_debug}
-                        运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，
-                        predict-预测，export_model_torch_script-导出TorchScript模型，export_model_onnx-导出ONNX模型，
-                        arg_debug-仅检查参数 (default: None)
+  -s {fit,finetune,validate,test,predict,export_model_torch_script,arg_debug}, --stage {fit,finetune,validate,test,predict,export_model_torch_script,arg_debug}
+                        运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-
+                        优化（检查点用于重启训练），validate-验证，test-测试，predict-
+                        预测，export_model_torch_script-
+                        导出TorchScript模型，arg_debug-仅检查参数 (default: None)
   -cm, --compile_model  编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)
                         (default: False)
   -msp MODEL_SAVE_PATH, --model_save_path MODEL_SAVE_PATH
                         TorchScript导出路径，置空时不导出 (default: None)
+  -psp PRED_SAVE_PATH, --pred_save_path PRED_SAVE_PATH
+                        预测结果保存路径，置空时不保存 (default: None)
   -se SEED_EVERYTHING, --seed_everything SEED_EVERYTHING
                         随机种子 (default: 0)
   -me MAX_EPOCHS, --max_epochs MAX_EPOCHS
@@ -304,18 +316,21 @@ options:
   -dcp DATA_CLASS_PATH, --data_class_path DATA_CLASS_PATH
                         数据模型类路径 (default: ColonoscopyMultiLabelDataModule)
   -dif DATA_INDEX_FILE, --data_index_file DATA_INDEX_FILE
-                        数据集索引文件 (default: Datasets/UIHNJMuLv3/folds/fold0.json)
+                        数据集索引文件 (default:
+                        Datasets/UIHNJMuLv3/folds/fold0.json)
   -dr DATA_ROOT, --data_root DATA_ROOT
                         数据集根路径 (default: Datasets/UIHNJMuLv3)
   -swk SAMPLE_WEIGHT_KEY [SAMPLE_WEIGHT_KEY ...], --sample_weight_key SAMPLE_WEIGHT_KEY [SAMPLE_WEIGHT_KEY ...]
-                        重采样数据子集列表 (default: ['ileocecal', 'nofeature', 'nonsense', 'outside'])
+                        重采样数据子集列表 (default: ['ileocecal', 'nofeature',
+                        'nonsense', 'outside'])
   -swv SAMPLE_WEIGHT_VALUE [SAMPLE_WEIGHT_VALUE ...], --sample_weight_value SAMPLE_WEIGHT_VALUE [SAMPLE_WEIGHT_VALUE ...]
-                        重采样数量列表(与sample_weight_key一一对应) (default: [4800, 4800, 480, 96])
+                        重采样数量列表(与sample_weight_key一一对应) (default: [4800, 4800,
+                        480, 96])
   -rs RESIZE_SHAPE RESIZE_SHAPE, --resize_shape RESIZE_SHAPE RESIZE_SHAPE
                         预处理时缩放图像目标规格；格式：(H, W) (default: (224, 224))
   -ccs CENTER_CROP_SHAPE CENTER_CROP_SHAPE, --center_crop_shape CENTER_CROP_SHAPE CENTER_CROP_SHAPE
-                        中心裁剪规格，配合resize_shape使用可裁去边缘；格式：(H, W)
-                        （注：只有中心(H, W)区域进入网络，以匹配主干网络的输入规格） (default: (224, 224))
+                        中心裁剪规格，配合resize_shape使用可裁去边缘；格式：(H, W)（注：只有中心(H,
+                        W)区域进入网络，以匹配主干网络的输入规格） (default: (224, 224))
   -bj BRIGHTNESS_JITTER, --brightness_jitter BRIGHTNESS_JITTER
                         标准化亮度泛化域宽，[max(0, 1 - brightness), 1 + brightness]
                         (default: 0.8)
@@ -328,13 +343,14 @@ options:
   -nw NUM_WORKERS, --num_workers NUM_WORKERS
                         数据装载线程数 (default: 16)
   -mcp MODEL_CLASS_PATH, --model_class_path MODEL_CLASS_PATH
-                        网络模型类路径 (default: MultiLabelClassifier_ViT_L_Patch16_224_Class7)
+                        网络模型类路径 (default:
+                        MultiLabelClassifier_ViT_L_Patch16_224_Class7)
   -nh {1,2,4,6,8}, --num_heads {1,2,4,6,8}
                         输出头（不同温度T）数量 (default: 8)
   -al ATTENTION_LAMBDA, --attention_lambda ATTENTION_LAMBDA
                         输出头类特征权重 (default: 0.3)
-  -thr THRESH, --thresh THRESH
-                        逐类标签置信度阈值 (default: 0.5)
+  -thr THRESH [THRESH ...], --thresh THRESH [THRESH ...]
+                        逐类标签置信度阈值 (default: [0.5])
   -lr LR, --lr LR       SGD优化器学习率 (default: 0.0001)
   -mom MOMENTUM, --momentum MOMENTUM
                         SGD优化器动量 (default: 0.9)
@@ -347,8 +363,8 @@ options:
   -nat NONSENSE_ACC_THRESH, --nonsense_acc_thresh NONSENSE_ACC_THRESH
                         nonsense性能筛选线 (default: 0.9)
   -timfp TEST_ID_MAP_FILE_PATH, --test_id_map_file_path TEST_ID_MAP_FILE_PATH
-                        测试输出时所使用的数据集索引文件，使用其中的图像标识码-路径映射表，
-                        置空时输出模型输入图像，有效时输出索引到的原始图像 (default: None)
+                        测试输出时所使用的数据集索引文件，使用其中的图像标识码-
+                        路径映射表，置空时输出模型输入图像，有效时输出索引到的原始图像 (default: None)
   -tvsd TEST_VIZ_SAVE_DIR, --test_viz_save_dir TEST_VIZ_SAVE_DIR
                         测试时，分类错误图像的保存目录，置空时不保存 (default: None)
 ```
@@ -379,9 +395,9 @@ Lightning CLI Configuration References:
 
 Lightning通过配置文件启动: 
 
-[Configure hyperparameters from the CLI (Intermediate) — PyTorch Lightning 2.0.7 documentation](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate.html)
+[Configure hyperparameters from the CLI (Intermediate)](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate.html)
 
-[Configure hyperparameters from the CLI (Advanced) — PyTorch Lightning 2.0.7 documentation](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html)
+[Configure hyperparameters from the CLI (Advanced)](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html)
 
 ## Logging
 
@@ -414,21 +430,21 @@ Also please refer to the Docs:
 
 另请参考在线资料：
 
-PyTorch Doc: [PyTorch documentation — PyTorch 2.0 documentation](https://pytorch.org/docs/2.0/)
+PyTorch Doc: [PyTorch documentation](https://pytorch.org/docs/2.0/)
 
-PyTorch可复现性: [Reproducibility — PyTorch master documentation](https://pytorch.org/docs/master/notes/randomness.html#reproducibility)
+PyTorch可复现性: [Reproducibility](https://pytorch.org/docs/master/notes/randomness.html#reproducibility)
 
-PyTorch2.0编译相关: [TorchDynamo Troubleshooting — PyTorch 2.0 documentation](https://pytorch.org/docs/stable/dynamo/troubleshooting.html)
+PyTorch2.0编译相关: [TorchDynamo Troubleshooting](https://pytorch.org/docs/stable/dynamo/troubleshooting.html)
 
-Lightning框架总览：[Lightning in 15 minutes — PyTorch Lightning 2.0.7 documentation](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
+Lightning框架总览：[Lightning in 15 minutes](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
 
-Lightning框架代码组织：[How to Organize PyTorch Into Lightning — PyTorch Lightning 2.0.7 documentation](https://lightning.ai/docs/pytorch/stable/starter/converting.html)
+Lightning框架代码组织：[How to Organize PyTorch Into Lightning](https://lightning.ai/docs/pytorch/stable/starter/converting.html)
 
 Lightning通过配置文件启动：
 
-[Configure hyperparameters from the CLI (Intermediate) — PyTorch Lightning 2.0.7 documentation](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate.html)
+[Configure hyperparameters from the CLI (Intermediate)](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_intermediate.html)
 
-[Configure hyperparameters from the CLI (Advanced) — PyTorch Lightning 2.0.7 documentation](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html)
+[Configure hyperparameters from the CLI (Advanced)](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli_advanced_3.html)
 
 通过Lightning使用PyTorch2.0编译：[Training Compiled PyTorch 2.0 with PyTorch Lightning](https://lightning.ai/blog/training-compiled-pytorch-2.0-with-pytorch-lightning/)
 

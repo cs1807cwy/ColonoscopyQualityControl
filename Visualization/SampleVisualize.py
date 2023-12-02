@@ -1,5 +1,5 @@
 """
-    可视化程序入口
+    可视化管线启动入口
     实现可视化管线：（对管线中的每一步封装一个单独函数）
         1.读取视频,拆帧 --> 指定源视频路径，提取元信息，指定存储全部帧的目录
         2.实例化模型进行预测 --> （只读，可选参数）指定预测标签Json存储路径（logit、label都记录在一个Json里），指定信号图存储路径（logit 7个、label 7个标签信号，14合1的总图）
@@ -12,10 +12,28 @@
         管线中输出的任何Json仅作日志使用，请勿做数据读取之用
         管线中的下一步处理直接从上一步的输出中获取数据，无需通过Json中转
 """
-import argparse
-import shutil
-import glob
 
+"""
+    模型预测日志标签Json格式：
+    {
+        'logit': [
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7] # [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3],
+            ...
+        ],
+        'label': [
+            [0, 0, 1, 0, 0, 0, 1] # [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3],
+            ...
+        ]
+    }
+    
+    后处理日志标签Json格式：
+    [
+        [0, 0, 0, 3] # [outside, nonsense, ileocecal, bbps(-1 for nobbps)],
+        ...
+    ]
+"""
+
+import argparse
 import os
 import os.path as osp
 import sys
@@ -30,25 +48,7 @@ from MultiLabelClassifier import *
 from QuickLauncher import MultiLabelClassifyLauncher
 
 """
-    3.模型预测日志标签Json格式：
-    {
-        'logit': [
-            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7] # [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3],
-            ...
-        ],
-        'label': [
-            [0, 0, 1, 0, 0, 0, 1] # [outside, nonsense, ileocecal, bbps0, bbps1, bbps2, bbps3],
-            ...
-        ]
-    }
-"""
-
-"""
-    5.后处理日志标签Json格式：
-    [
-        [0, 0, 0, 3] # [outside, nonsense, ileocecal, bbps(-1 for nobbps)],
-        ...
-    ]
+    实例化模型进行预测
 """
 
 
@@ -138,7 +138,7 @@ def pipeline(args: argparse.Namespace):
             for i in range(len(args.frame_path)):
                 post_lb = None
                 if args.post_json_path is not None and i < len(args.post_json_path):
-                    post_lb = log_post_predict(post_label[i], args.post_json_path[i])
+                    post_lb = log_post_predict(post_label[i].astype(int), args.post_json_path[i])
                 if args.post_signal_path is not None and i < len(args.post_signal_path):
                     if post_lb is None:
                         post_lb = log_post_predict(post_label[i], None)
@@ -160,29 +160,17 @@ def pipeline(args: argparse.Namespace):
 
             if args.render_frame or not args.merge_video:
                 # 实例化模型预测
-                # pred = predict(args.device, args.frame_path[i], args.ckpt_path)
-
-                pred: List[Tuple[torch.Tensor, torch.Tensor]] = \
-                    [
-                        (torch.from_numpy(np.array(([[0.1, 0.2, 0.9, 0.1, 0.1, 0.6, 0.1]]))),
-                         torch.from_numpy(np.array(([[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0]])))),
-                        (torch.from_numpy(np.array(([[0.9, 0.2, 0.1, 0.1, 0.1, 0.3, 0.1]]))),
-                         torch.from_numpy(np.array(([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]))))
-                    ]
-                print(pred)
+                pred = predict(args.device, args.frame_path[i], args.ckpt_path)
 
                 # 原始模型预测日志
                 model_predict = None
                 if args.pred_json_path is not None and i < len(args.pred_json_path):
-                    print('pred_json_path')
                     model_predict = log_model_predict(pred, args.pred_json_path[i])
                 if args.pred_signal_path is not None and i < len(args.pred_signal_path):
-                    print('pred_signal_path')
                     if model_predict is None:
                         model_predict = log_model_predict(pred, None)
                     plot_model_predict(model_predict, args.pred_signal_path[i])
 
-                print('post_process')
                 # 后处理
                 signal_mat = parse_predict_label(pred)
                 scaled_N = [max(1, math.ceil(fps / 25.0 * N)) for N in args.kernel_sizes]
@@ -192,7 +180,7 @@ def pipeline(args: argparse.Namespace):
                 # 后处理结果日志
                 post_lb = None
                 if args.post_json_path is not None and i < len(args.post_json_path):
-                    post_lb = log_post_predict(post_label, args.post_json_path[i])
+                    post_lb = log_post_predict(post_label.astype(int), args.post_json_path[i])
                 if args.post_signal_path is not None and i < len(args.post_signal_path):
                     if post_lb is None:
                         post_lb = log_post_predict(post_label, None)
@@ -250,6 +238,12 @@ def main(args: argparse.Namespace):
 if __name__ == '__main__':
     """
         实例化 ArgumentParser，接收下列参数：[*]表示可选参数
+            [批处理模式-b] bool：设置为真时，以批处理模式运行，部分路径参数将作为目录路径使用
+            [拆帧例程-x] bool：设置为真时，执行拆帧例程，否则从拆帧目录读取
+            [渲染例程-r] bool：设置为真时，执行渲染帧例程，否则不渲染标签可视化帧
+            [视频合成例程-m] bool：设置为真时，执行视频合成例程，否则不生成标签可视化视频
+            [步骤模式-s] bool：设置为真时，以步骤模式运行，按步骤执行管线，而不是按样本执行，可以更高效地使用IO，但必须等管线执行完毕才能得到最终结果
+            源视频扩展名过滤器 List[str]：批处理模式下扫描目录内要提取的视频的扩展名选集，默认为[mp4]
             源视频路径 List[str]：指定每个视频路径
             拆帧目录：List[str]：每个视频指定一个拆帧目录
             [模型预测日志标签Json存储路径]：List[str]：每个视频指定一个Json存储路径
@@ -262,7 +256,8 @@ if __name__ == '__main__':
             设备号 List[int]：指定每个视频的设备号
             模型预测检查点路径 str：指定模型预测检查点路径
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='启动可视化管线，请确保各路径参数列表的长度一致',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-b', '--batching', action='store_true', help='执行批处理')
     parser.add_argument('-x', '--extract_frame', action='store_true', help='执行拆帧例程')
     parser.add_argument('-r', '--render_frame', action='store_true', help='执行渲染帧例程')
@@ -273,13 +268,13 @@ if __name__ == '__main__':
     parser.add_argument('--frame_path', type=str, nargs='+', help='拆帧目录，批处理时为拆帧上级目录路径', default=None)
     parser.add_argument('--pred_json_path', type=str, nargs='+', help='模型预测日志标签Json存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--pred_signal_path', type=str, nargs='+', help='模型预测日志信号图存储路径，批处理时为存储目录路径', default=None)
-    parser.add_argument('--kernel_sizes', type=int, nargs='+', help='卷积核规格列表（25FPS基准）')
+    parser.add_argument('--kernel_sizes', type=int, nargs='+', required=True, help='卷积核规格列表（25FPS基准）')
     parser.add_argument('--post_json_path', type=str, nargs='+', help='后处理日志标签Json存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--post_signal_path', type=str, nargs='+', help='后处理日志信号图存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--render_path', type=str, nargs='+', help='渲染目录，批处理时为渲染上级目录路径', default=None)
     parser.add_argument('--output_path', type=str, nargs='+', help='视频输出路径，批处理时为输出目录路径', default=None)
-    parser.add_argument('--device', type=int, nargs='+', help='设备号')
-    parser.add_argument('--ckpt_path', type=str, help='lightning-pytorch模型文件路径')
+    parser.add_argument('--device', type=int, nargs='+', required=True, help='设备号')
+    parser.add_argument('--ckpt_path', type=str, required=True, help='lightning-pytorch模型文件路径')
 
     args = parser.parse_args()
     print(f'raw_args: {args}')
