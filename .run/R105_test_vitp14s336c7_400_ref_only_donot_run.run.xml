@@ -1,0 +1,25 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="R105_test_vitp14s336c7_400_ref_only_donot_run" type="PythonConfigurationType" factoryName="Python" folderName="RunReference">
+    <module name="ColonoscopyQualityControl" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="/home/shr/.conda/envs/cwypy310pt20/bin/python" />
+    <option name="SDK_NAME" value="py310cqc(sftp://shr@222.20.96.99:2700/home/shr/.conda/envs/cwypy310pt20/bin/python)" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="IS_MODULE_SDK" value="false" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/QuickLauncher.py" />
+    <option name="PARAMETERS" value="--stage test --seed_everything 0 --max_epochs 400 --batch_size 16 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt --accelerator gpu --strategy ddp --devices 0 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R105_test_vitp14s336c7_400 --version test --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file Datasets/UIHNJMuLv3Split/fold_train_validation_test.json --data_root Datasets/UIHNJMuLv3Split --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 4 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 --test_id_map_file_path Datasets/UIHNJMuLv3Split/fold_train_validation_test.json --test_viz_save_dir Experiment/R105_test_vitp14s336c7_400/test_viz" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>

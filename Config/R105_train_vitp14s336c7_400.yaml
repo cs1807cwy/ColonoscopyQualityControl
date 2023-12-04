@@ -1,24 +1,24 @@
 # lightning.pytorch==2.0.1.post0
-# nohup python DeployLauncher.py fit --config Config/multi_label_classify_config/R002_finetuneR001_400.yaml > ./log/R002_finetuneR001_400.log &
-# R002_finetuneR001_400
+# nohup python DeployLauncher.py fit --config Config/R105_train_vitp14s336c7_400.yaml > ./log/R105_train_vitp14s336c7_400.log &
+# R105_train_vitp14s336c7_400
 seed_everything: 0
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: [ 5, 6, 7, 8 ]
+  devices: [ 0, 1 ] # use gpu 0 & 1
   num_nodes: 1
   precision: 32-true
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger # note: enable logging to tensorboard, support image logging
       init_args:
         save_dir: "Experiment"            # note: directory to save log files
-        name: "R002_finetuneR001_400"          # note: name of the current experiment
-        version: "tensorboard_finetune"  # note: version name specified by the logger, for formally experiments, please specify a version number
+        name: "R105_train_vitp14s336c7_400"          # note: name of the current experiment
+        version: "tensorboard_fit"  # note: version name specified by the logger, for formally experiments, please specify a version number
     - class_path: lightning.pytorch.loggers.CSVLogger # note: enable logging to csv, doesn't support image logging
       init_args:
         save_dir: "Experiment"            # note: identical to other loggers' is ok, they'll save log files to the same directory
-        name: "R002_finetuneR001_400"          # note: keep the same experiment name
-        version: "csv_finetune"          # note: version name specified by the logger, for formally experiments, please specify a version number
+        name: "R105_train_vitp14s336c7_400"          # note: keep the same experiment name
+        version: "csv_fit"          # note: version name specified by the logger, for formally experiments, please specify a version number
   callbacks:
     - class_path: lightning.pytorch.callbacks.progress.TQDMProgressBar # note: display a tqdm progress bar
       init_args:
@@ -53,19 +53,9 @@ trainer:
         filename: "MuLModel_best_ileoAcc_{epoch:03d}_{label_ileocecal_acc_thresh:.4f}"
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
-        monitor: "label_ileocecal_prec_thresh" # note: save .ckpt with the highest label_ileocecal_prec
-        mode: max
-        filename: "MuLModel_best_ileoPrec_{epoch:03d}_{label_ileocecal_prec_thresh:.4f}"
-    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
-      init_args:
         monitor: "label_cleansing_acc_thresh" # note: save .ckpt with the highest label_cleansing_acc
         mode: max
         filename: "MuLModel_best_cls4Acc_{epoch:03d}_{label_cleansing_acc_thresh:.4f}"
-    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
-      init_args:
-        monitor: "label_cleansing_biclassify_acc_thresh" # note: save .ckpt with the highest label_cleansing_biclassify_acc
-        mode: max
-        filename: "MuLModel_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc_thresh:.4f}"
   fast_dev_run: false
   max_epochs: 400
   min_epochs: null
@@ -97,46 +87,49 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: "Experiment/R002_finetuneR001_400"
-ckpt_path: "Experiment/R001_train_400/tensorboard_fit/checkpoints/last.ckpt" # note: reload from checkpoint
+  default_root_dir: "Experiment/R105_train_vitp14s336c7_400"
+ckpt_path: null # note: reload from checkpoint
 data:
-  class_path: MultiLabelClassifier.ColonoscopyMultiLabelDataModule
+  class_path: MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule
   init_args:
-    data_index_file: "../Datasets/UIHNJMuL/folds/fold0.json"
-    data_root: "../Datasets/UIHNJMuL"
+    data_index_file: "Datasets/UIHNJMuLv3Split/fold_train_validation_test.json"
+    data_root: "Datasets/UIHNJMuLv3Split"
     sample_weight:
-      ileocecal: 4800
-      nofeature: 4800
-      nonsense: 0
-      outside: 0
+      nobbps: 500
+      bbps0: 400
+      bbps1: 400
+      bbps2: 1600
+      bbps3: 1600
     resize_shape:
-      - 224
-      - 224
+      - 336
+      - 336
     center_crop_shape:
-      - 224
-      - 224
+      - 336
+      - 336
     brightness_jitter: 0.8
     contrast_jitter: 0.8
     saturation_jitter: 0.8
-    batch_size: 48
-    num_workers: 16
+    batch_size: 16
+    num_workers: 4
     dry_run: false
 model:
-  class_path: MultiLabelClassifier.MultiLabelClassifier_ViT_L_Patch16_224_Class7
+  class_path: MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7
   init_args:
     input_shape:
-      - 224
-      - 224
+      - 336
+      - 336
     num_heads: 8
     attention_lambda: 0.3
     num_classes: 7
     thresh: 0.5
-    batch_size: 48
-    lr: 0.00001
+    batch_size: 16
+    lr: 0.0001
     epochs: 400
     momentum: 0.9
     weight_decay: 0.0001
-    cls_weight: 10.0
+    cls_weight: 0.2
     outside_acc_thresh: 0.9
     nonsense_acc_thresh: 0.9
-    test_viz_save_dir: "Experiment/R002_finetuneR001_400/test_viz"
+    data_root: "Datasets/UIHNJMuLv3Split"
+    test_id_map_file_path: "Datasets/UIHNJMuLv3Split/fold_train_validation_test.json"
+    test_viz_save_dir: "Experiment/R105_train_vitp14s336c7_400/test_viz"

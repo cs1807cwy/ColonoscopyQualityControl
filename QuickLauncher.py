@@ -12,7 +12,6 @@ from lightning.pytorch.callbacks.progress import TQDMProgressBar
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-import MultiLabelClassifier.Modelv3
 from MultiLabelClassifier import *
 
 # for reproduction
@@ -21,48 +20,40 @@ torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 torch.set_float32_matmul_precision('high')
 
+## 以下为命令行参数默认值
 # hparams for Trainer
 accelerator = 'gpu'
 strategy = 'ddp'
-devices = [0, 1, 2, 3]
+devices = [0, 1]
 max_epochs = 400
 check_val_every_n_epoch = 1
 log_every_n_steps = 10
-experiment_name = 'R001_Releasev1_train_MultiLabelClassifier_ViT_L_patch16_224_compile_epoch1000'
+experiment_name = 'default_experiment'
 ckpt_every_n_epochs = 20
 
 # hparams for DataModule
 data_class_path = 'ColonoscopyMultiLabelDataModule'
-data_root = 'Datasets/UIHNJMuLv3'
-# Loc split Ref
-data_index_file = 'Datasets/UIHNJMuLv3/folds/fold0.json'
+data_root = 'Datasets/UIHNJMuLv3Split'
+data_index_file = 'Datasets/UIHNJMuLv3Split/fold_train_validation_test.json'
 sample_weight = {
-    'ileocecal': 4800,
-    'nofeature': 4800,
-    'nonsense': 480,
-    'outside': 96,
+    'nobbps': 500,
+    'bbps0': 400,
+    'bbps1': 400,
+    'bbps2': 1600,
+    'bbps3': 1600
 }
-# cleansing split Ref
-# data_index_file = '/mnt/data/cwy/Datasets/UIHNJv3MuL/cls_folds/fold0.json'
-# sample_weight = {
-#     'nobbps': 600,
-#     'bbps0': 300,
-#     'bbps1': 300,
-#     'bbps2': 2100,
-#     'bbps3': 2100,
-# }
-resize_shape = (224, 224)
-center_crop_shape = (224, 224)
+resize_shape = (336, 336)
+center_crop_shape = (336, 336)
 brightness_jitter = 0.8
 contrast_jitter = 0.8
 saturation_jitter = 0.8
 batch_size = 16
-num_workers = 16
+num_workers = 4
 dry_run = False
 
 # hparams for Module
-model_class_path = 'MultiLabelClassifier_ViT_L_Patch16_224_Class7'
-input_shape = (224, 224)  # 与center_crop_shape保持一致
+model_class_path = 'MultiLabelClassifier_ViT_L_Patch14_336_Class7'
+input_shape = (336, 336)  # 与center_crop_shape保持一致
 num_heads = 8
 attention_lambda = 0.3
 num_classes = 7
@@ -274,15 +265,6 @@ class MultiLabelClassifyLauncher:
                 print(script)
             else:
                 warnings.warn('model_save_path is not specified, abort exporting')
-        # elif stage == 'export_model_onnx':  # 存在ONNX不支持的ATen算子（scaled_dot_product_attention），当前无法成功导出
-        #     if self.model_save_path is not None:
-        #         os.makedirs(osp.dirname(self.model_save_path), exist_ok=True)
-        #         # save for use in production environment
-        #         model.eval()
-        #         model.to_onnx(self.model_save_path)
-        #         print(model.device)
-        #     else:
-        #         warnings.warn('model_save_path is not specified, abort exporting')
         return None
 
 
@@ -380,19 +362,9 @@ def main(parser: argparse.ArgumentParser, args: argparse.Namespace):
                 filename='MuLModel_best_ileoAcc_{epoch:03d}_{label_ileocecal_acc_thresh:.4f}'
             ),
             ModelCheckpoint(
-                monitor='label_ileocecal_prec_thresh',
-                mode='max',
-                filename='MuLModel_best_ileoPrec_{epoch:03d}_{label_ileocecal_prec_thresh:.4f}'
-            ),
-            ModelCheckpoint(
                 monitor='label_cleansing_acc_thresh',
                 mode='max',
                 filename='MuLModel_best_cls4Acc_{epoch:03d}_{label_cleansing_acc_thresh:.4f}'
-            ),
-            ModelCheckpoint(
-                monitor='label_cleansing_biclassify_acc_thresh',
-                mode='max',
-                filename='MuLModel_best_cls2Acc_{epoch:03d}_{label_cleansing_biclassify_acc_thresh:.4f}'
             ),
         ],
         # endregion
@@ -422,13 +394,9 @@ if __name__ == '__main__':
 
     # 自定义参数
     parser.add_argument('-s', '--stage', required=True,
-                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model_torch_script',
-                                 # 'export_model_onnx',
-                                 'arg_debug'],
+                        choices=['fit', 'finetune', 'validate', 'test', 'predict', 'export_model_torch_script', 'arg_debug'],
                         help='运行模式：fit-训练(包含训练时验证，检查点用于恢复状态)，finetune-优化（检查点用于重启训练），validate-验证，test-测试，predict-预测，'
-                             'export_model_torch_script-导出TorchScript模型，'
-                             # 'export_model_onnx-导出ONNX模型，'
-                             'arg_debug-仅检查参数')
+                             'export_model_torch_script-导出TorchScript模型，arg_debug-仅检查参数')
     parser.add_argument('-cm', '--compile_model', action='store_true',
                         help='编译模型以加速(使用GPU，要求CUDA Compute Capability >= 7.0)')
     parser.add_argument('-msp', '--model_save_path', default=None, help='TorchScript导出路径，置空时不导出')
@@ -497,24 +465,20 @@ if __name__ == '__main__':
 
     main(parser, parser.parse_args())
 
-    # Remote Train CMD Refs:
-
-    # R103_train_vitp14s336c7_400
-    # 2 RTX 3090
-    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 16 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R103_train_vitp14s336c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R103_train_vitp14s336c7_400.log &
-
-    # R103_test_fps_vitp14s336c7_400
-    # 1 RTX 3090
-    # nohup python QuickLauncher.py --stage test --seed_everything 0 --max_epochs 400 --batch_size 1 --ckpt_path Experiment/R103_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=026_label_cleansing_acc_thresh=0.9691.ckpt --accelerator gpu --strategy ddp --devices 2 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R103_test_fps_vitp14s336c7_400 --version test_fps --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 1 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R103_test_fps_vitp14s336c7_400.log &
-
-    # R104_train_vitp16s224c7_400
-    # 4 GTX 1080 ti
-    # nohup python QuickLauncher.py --stage fit --seed_everything 0 --max_epochs 400 --batch_size 12 --accelerator gpu --strategy ddp --devices 1 2 3 4 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R104_train_vitp16s224c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 224 224 --center_crop_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv2.MultiLabelClassifier_ViT_L_Patch16_224_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R104_train_vitp16s224c7_400.log &
-
-    # R104_test_fps_vitp16s224c7_400
-    # 1 GTX 1080 ti
-    # nohup python QuickLauncher.py --stage test --seed_everything 0 --max_epochs 400 --batch_size 1 --ckpt_path Experiment/R104_train_vitp16s224c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=128_label_cleansing_acc_thresh=0.9414.ckpt --accelerator gpu --strategy ddp --devices 1 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R104_test_fps_vitp16s224c7_400 --version test_fps --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/fold0.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 224 224 --center_crop_shape 224 224 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 1 --model_class_path MultiLabelClassifier.Modelv2.MultiLabelClassifier_ViT_L_Patch16_224_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R104_test_fps_vitp16s224c7_400.log &
+    # Remote CMD Refs:
 
     # R105_train_vitp14s336c7_400
-    # 2 RTX 3090
-    # nohup python QuickLauncher.py --stage fit --compile_model --seed_everything 0 --max_epochs 400 --batch_size 16 --accelerator gpu --strategy ddp --devices 2 3 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R105_train_vitp14s336c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file ../Datasets/UIHNJMuLv3/cls_folds/train_validation_test_fold.json --data_root ../Datasets/UIHNJMuLv3 --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 16 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R105_train_vitp14s336c7_400.log &
+    # GPU 0 1
+    # nohup python QuickLauncher.py --stage fit --seed_everything 0 --max_epochs 400 --batch_size 16 --accelerator gpu --strategy ddp --devices 0 1 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R105_train_vitp14s336c7_400 --version fit --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file Datasets/UIHNJMuLv3Split/fold_train_validation_test.json --data_root Datasets/UIHNJMuLv3Split --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 4 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 > log/R105_train_vitp14s336c7_400.log &
+
+    # R105_test_vitp14s336c7_400
+    # GPU 0
+    # nohup python QuickLauncher.py --stage test --seed_everything 0 --max_epochs 400 --batch_size 16 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt --accelerator gpu --strategy ddp --devices 0 --check_val_every_n_epoch 1 --log_every_n_steps 10 --experiment_name R105_test_vitp14s336c7_400 --version test --ckpt_every_n_epochs 50 --tqdm_refresh_rate 20 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_index_file Datasets/UIHNJMuLv3Split/fold_train_validation_test.json --data_root Datasets/UIHNJMuLv3Split --sample_weight_key nobbps bbps0 bbps1 bbps2 bbps3 --sample_weight_value 500 400 400 1600 1600 --resize_shape 336 336 --center_crop_shape 336 336 --brightness_jitter 0.8 --contrast_jitter 0.8 --saturation_jitter 0.8 --num_workers 4 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 --thresh 0.5 --lr 0.0001 --momentum 0.9 --weight_decay 0.0001 --cls_weight 0.2 --outside_acc_thresh 0.9 --nonsense_acc_thresh 0.9 --test_id_map_file_path Datasets/UIHNJMuLv3Split/fold_train_validation_test.json --test_viz_save_dir Experiment/R105_test_vitp14s336c7_400/test_viz > log/R105_test_vitp14s336c7_400.log &
+
+    # R105_export_model_vitp14s336c7_400
+    # GPU 0
+    # nohup python QuickLauncher.py --stage export_model_torch_script --model_save_path Export/R105_vitp14s336c7_400_MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ths --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt --accelerator gpu --strategy ddp --devices 0 --center_crop_shape 336 336 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 > log/R105_export_model_vitp14s336c7_400.log &
+
+    # R105_predict_vitp14s336c7_400
+    # GPU 0
+    # nohup python QuickLauncher.py --stage predict --seed_everything 0 --batch_size 1 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt --accelerator gpu --strategy ddp --devices 0 --data_class_path MultiLabelClassifier.DataModule.ColonoscopyMultiLabelDataModule --data_root Datasets/Dir_For_Predict --center_crop_shape 336 336 --model_class_path MultiLabelClassifier.Modelv3.MultiLabelClassifier_ViT_L_Patch14_336_Class7 --num_heads 8 --attention_lambda 0.3 > log/R105_predict_vitp14s336c7_400.log &

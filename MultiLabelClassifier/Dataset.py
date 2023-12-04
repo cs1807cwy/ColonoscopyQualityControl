@@ -23,8 +23,8 @@ class ColonoscopyMultiLabelDataset(Dataset):
                  sample_weight: Union[None, int, float, Dict[str, Union[int, float]]] = None,
                  for_validation: bool = False,
                  for_test: bool = False,  # for_test 有最高优先级
-                 resize_shape: Tuple[int, int] = (224, 224),
-                 center_crop_shape: Tuple[int, int] = (224, 224),
+                 resize_shape: Tuple[int, int] = (336, 336),
+                 center_crop_shape: Tuple[int, int] = (336, 336),
                  brightness_jitter: Union[float, Tuple[float, float]] = 0.8,
                  contrast_jitter: Union[float, Tuple[float, float]] = 0.8,
                  saturation_jitter: Union[float, Tuple[float, float]] = 0.8,
@@ -278,8 +278,8 @@ class ColonoscopyMultiLabelPredictDataset(Dataset):
                  # 数据目录
                  data_root_dir: str,
                  ext: List[str] = ('png', 'jpg'),
-                 resize_shape: Tuple[int, int] = (224, 224),
-                 center_crop_shape: Tuple[int, int] = (224, 224)
+                 resize_shape: Tuple[int, int] = (336, 336),
+                 center_crop_shape: Tuple[int, int] = (336, 336)
                  ):
         """
         Args:

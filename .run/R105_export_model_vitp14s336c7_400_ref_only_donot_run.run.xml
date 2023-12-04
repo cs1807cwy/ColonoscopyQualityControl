@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="R105_export_model_vitp14s336c7_400" type="PythonConfigurationType" factoryName="Python" folderName="Cls-Spec Train Model">
+  <configuration default="false" name="R105_export_model_vitp14s336c7_400_ref_only_donot_run" type="PythonConfigurationType" factoryName="Python" folderName="RunReference">
     <module name="ColonoscopyQualityControl" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

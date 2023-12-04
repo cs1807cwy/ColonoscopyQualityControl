@@ -268,7 +268,7 @@ if __name__ == '__main__':
     parser.add_argument('--frame_path', type=str, nargs='+', help='拆帧目录，批处理时为拆帧上级目录路径', default=None)
     parser.add_argument('--pred_json_path', type=str, nargs='+', help='模型预测日志标签Json存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--pred_signal_path', type=str, nargs='+', help='模型预测日志信号图存储路径，批处理时为存储目录路径', default=None)
-    parser.add_argument('--kernel_sizes', type=int, nargs='+', required=True, help='卷积核规格列表（25FPS基准）')
+    parser.add_argument('--kernel_sizes', type=int, nargs='+', required=True, help='卷积核规格列表（25FPS基准）', default=[121, 51, 51, 51])
     parser.add_argument('--post_json_path', type=str, nargs='+', help='后处理日志标签Json存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--post_signal_path', type=str, nargs='+', help='后处理日志信号图存储路径，批处理时为存储目录路径', default=None)
     parser.add_argument('--render_path', type=str, nargs='+', help='渲染目录，批处理时为渲染上级目录路径', default=None)
@@ -281,11 +281,6 @@ if __name__ == '__main__':
     main(args)
 
     # Model: R105_train_vitp14s336c7_400
-    # Device: (0) RTX 3090
-    # Dataset: /mnt/data/cwy/Datasets/RemedyBubbles
-    # nohup python ./Visualization/SampleVisualize.py -bxrms --video_path /mnt/data/cwy/Datasets/RemedyBubbles --frame_path /mnt/data/cwy/RemedyBubbles_Viz/extract --pred_json_path /mnt/data/cwy/RemedyBubbles_Viz/pred_json --pred_signal_path /mnt/data/cwy/RemedyBubbles_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/RemedyBubbles_Viz/post_json --post_signal_path /mnt/data/cwy/RemedyBubbles_Viz/post_signal --render_path /mnt/data/cwy/RemedyBubbles_Viz/render --output_path /mnt/data/cwy/RemedyBubbles_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/RemedyBubbles_Viz.log &
-
-    # Model: R105_train_vitp14s336c7_400
-    # Device: (0) RTX 3090
-    # Dataset: /mnt/data/cwy/Datasets/TestClips
-    # nohup python ./Visualization/SampleVisualize.py -bxrms --video_path /mnt/data/cwy/Datasets/TestClips --frame_path /mnt/data/cwy/TestClips_Viz/extract --pred_json_path /mnt/data/cwy/TestClips_Viz/pred_json --pred_signal_path /mnt/data/cwy/TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path /mnt/data/cwy/TestClips_Viz/post_json --post_signal_path /mnt/data/cwy/TestClips_Viz/post_signal --render_path /mnt/data/cwy/TestClips_Viz/render --output_path /mnt/data/cwy/TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/TestClips_Viz.log &
+    # Device: GPU 0
+    # Dataset: Datasets/TestClips
+    # nohup python Visualization/SampleVisualize.py -bxrms --video_path Datasets/TestClips --frame_path TestClips_Viz/extract --pred_json_path TestClips_Viz/pred_json --pred_signal_path TestClips_Viz/pred_signal --kernel_sizes 121 51 51 51 --post_json_path TestClips_Viz/post_json --post_signal_path TestClips_Viz/post_signal --render_path TestClips_Viz/render --output_path TestClips_Viz/video --device 0 --ckpt_path Experiment/R105_train_vitp14s336c7_400/tensorboard_fit/checkpoints/MuLModel_best_cls4Acc_epoch=039_label_cleansing_acc_thresh=0.9628.ckpt > log/TestClips_Viz.log &
