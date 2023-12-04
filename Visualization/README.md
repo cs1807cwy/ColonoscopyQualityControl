@@ -84,7 +84,7 @@ options:
   --pred_signal_path PRED_SIGNAL_PATH [PRED_SIGNAL_PATH ...]
                         模型预测日志信号图存储路径，批处理时为存储目录路径 (default: None)
   --kernel_sizes KERNEL_SIZES [KERNEL_SIZES ...]
-                        卷积核规格列表（25FPS基准） (default: None)
+                        卷积核规格列表（25FPS基准） (default: [121, 51, 51, 51])
   --post_json_path POST_JSON_PATH [POST_JSON_PATH ...]
                         后处理日志标签Json存储路径，批处理时为存储目录路径 (default: None)
   --post_signal_path POST_SIGNAL_PATH [POST_SIGNAL_PATH ...]
