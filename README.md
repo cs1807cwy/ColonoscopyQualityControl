@@ -136,6 +136,29 @@ Install utility packages:
 conda install numpy pyyaml tqdm pillow -y
 ```
 
+## Prepare Datasets
+
+## 准备数据集
+
+Place Dataset(s) at valid directory path, eg:
+
+请将带有索引文件的数据集放置在确定路径下，例如：
+
+```bash
+<ProjectRoot>/Dataset/UIHNJMuLv3Split
+```
+
+Dataset should contains data root(s) & index file, eg: (refer to UIHDatasetPreprocessing CProc12 for details)
+
+数据集应包含数据目录和索引文件，例如：（具体格式请参见UIHDatasetPreprocessing工程包CProc12）
+
+```bash
+data_test       # 测试集数据目录
+data_train      # 训练集数据目录
+data_validation # 验证集数据目录
+fold_train_validation_test.json # 训练集、验证集、测试集汇总索引文件，供训练使用
+```
+
 ## Quick Launch
 
 ## 快速启动
@@ -147,6 +170,12 @@ Entry of the program at:
 ```bash
 <ProjectRoot>/QuickLauncher.py
 ```
+
+**使用示例**参见`<ProjectRoot>/.run/R105*.run.xml`系列配置文件（可在PyCharm运行配置页面中打开查看），重要参数包括：
+
+- 使用`--experiment_name`参数指定实验名称，程序运行日志和输出文件将会记录于此处。
+- 使用`--accelerator`指定加速设备类别，常见的参数为`cpu`、`gpu`。
+- 使用`--devices`指定设备号。accelerator为gpu时，传入所使用的设备编号列表（例如"2 3"表示使用编号2、3的两个GPU）；accelerator为cpu时，传入加速使用的cpu核心数（如"4"表示使用四核加速）。请确保GPU设备编号有效或CPU核心总数足够。
 
 Launch command example:
 
@@ -416,7 +445,7 @@ Log files save at:
 
 快速启动时，日志文件保存于重定向目标位置，无重定向时仅输出到控制台。
 
-从配置文件启动时，日志文件保存于：
+训练、验证、测试管线启动后，日志文件保存于：
 
 ```bash
 <ProjectRoot>/Experiment/<ExperimentName>/
